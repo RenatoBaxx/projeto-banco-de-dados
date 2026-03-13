@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciar Uploads</title>
+</head>
+<body>
+
+    <h1>Gerenciar Upload de Jogos</h1>
+
+    <h2>Criar Upload</h2>
+
+    Game ID:
+    <input type="text" id="gameId">
+
+    Loja:
+    <input type="text" id="loja">
+
+    Status:
+    <input type="text" id="status" value="PENDENTE">
+
+    <button onclick="criarUpload()">Criar</button>
+
+    <hr>
+
+    <h2>Consultar Upload</h2>
+
+    Game ID:
+    <input type="text" id="buscarId">
+
+    <button onclick="buscarUpload()">Buscar</button>
+
+    <pre id="resultado"></pre>
+
+    <hr>
+
+    <h2>Atualizar Status</h2>
+
+    Game ID:
+    <input type="text" id="updateId">
+
+    Novo Status:
+    <input type="text" id="novoStatus">
+
+    <button onclick="atualizarStatus()">Atualizar</button>
+
+    <hr>
+
+    <h2>Deletar Upload</h2>
+
+    Game ID:
+    <input type="text" id="deleteId">
+
+    <button onclick="deletarUpload()">Deletar</button>
+
+    <script src="/index.js"></script>
+
+    </body>
+</html>
