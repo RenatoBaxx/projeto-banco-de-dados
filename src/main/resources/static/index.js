@@ -1,3 +1,4 @@
+/*
 async function criarUpload() {
 
     const upload = {
@@ -56,3 +57,4 @@ async function deletarUpload() {
 
     alert("Upload deletado!");
 }
+*/
