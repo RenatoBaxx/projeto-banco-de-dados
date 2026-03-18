@@ -25,15 +25,20 @@ function Register() {
   return (
     <div className="app-container" style={{ minHeight: '80vh' }}>
       <main className="grid">
-        <section className="card">
-          <h2 style={{ textAlign: 'center' }}>
-            <span>
+        <section className="login-section">
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0 0 0.75rem 0' }}>
               Cadastrar Empresa
-            </span>
-          </h2>
+            </h2>
+            <img
+              src="/gamehub.png"
+              alt="GameHUB"
+              style={{ display: 'block', width: '100%', maxWidth: '240px', margin: '0 auto' }}
+            />
+          </div>
           <form onSubmit={handleRegister}>
             <div className="form-group">
-              <label>Razão Social</label>
+              <label>Nome Empresa</label>
               <input
                 type="text"
                 className="form-control"
@@ -53,7 +58,7 @@ function Register() {
               />
             </div>
             <div className="form-group">
-              <label>Email Corporativo</label>
+              <label>Email</label>
               <input
                 type="email"
                 className="form-control"

@@ -18,12 +18,17 @@ function Login() {
   return (
     <div className="app-container" style={{ minHeight: '80vh' }}>
       <main className="grid">
-        <section className="card">
-          <h2 style={{ textAlign: 'center' }}>
-            <span>
-              HUB Login
-            </span>
-          </h2>
+        <section className="login-section">
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: '0 0 0.75rem 0' }}>
+              GameHUB Login
+            </p>
+            <img
+              src="/gamehub.png"
+              alt="GameHUB"
+              style={{ display: 'block', width: '100%', maxWidth: '240px', margin: '0 auto' }}
+            />
+          </div>
           <form onSubmit={handleLogin}>
             <div className="form-group">
               <label>Email</label>
