@@ -1,12 +1,14 @@
 package com.projetoDados.HUB.Backend.Redis.Service;
 
-import com.projetoDados.HUB.Backend.Redis.Model.GameStats;
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
+import java.util.Set;
+
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.Set;
+import com.projetoDados.HUB.Backend.Redis.Model.GameStats;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -21,28 +23,28 @@ public class GameStatsService {
         String statsKey = "game:" + gameId + ":stats";
         String usersKey = "game:" + gameId + ":users";
 
-        // adiciona usuário no SET
+        // adiciona usuário
         redisTemplate.opsForSet().add(usersKey, userId);
 
         // incrementa online
         Long online = redisTemplate.opsForValue()
                 .increment("game:" + gameId + ":online");
 
-        // atualiza HASH
-        redisTemplate.opsForHash().put(statsKey, "online", online);
+        // 🔥 CRIA/ATUALIZA HASH
+        redisTemplate.opsForHash().put(statsKey, "online", online.toString());
 
-        // atualizar max
+        // max
         Object maxObj = redisTemplate.opsForHash().get(statsKey, "max");
-        Long max = maxObj == null ? 0 : Long.parseLong(maxObj.toString());
+        Long max = maxObj != null ? Long.parseLong(maxObj.toString()) : 0L;
 
         if (online > max) {
-            redisTemplate.opsForHash().put(statsKey, "max", online);
+            redisTemplate.opsForHash().put(statsKey, "max", online.toString());
         }
 
-        // atualizar min
+        // min (primeira vez)
         Object minObj = redisTemplate.opsForHash().get(statsKey, "min");
         if (minObj == null) {
-            redisTemplate.opsForHash().put(statsKey, "min", online);
+            redisTemplate.opsForHash().put(statsKey, "min", online.toString());
         }
 
         // ranking
