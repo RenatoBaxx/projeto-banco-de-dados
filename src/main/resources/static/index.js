@@ -1,58 +1,64 @@
-async function criarUpload() {
+async function enterGame() {
+  const gameId = document.getElementById("enterGameId").value;
+  const userId = document.getElementById("enterUserId").value;
 
-    const upload = {
-        gameId: document.getElementById("gameId").value,
-        loja: document.getElementById("loja").value,
-        status: document.getElementById("status").value
-    };
+  await fetch(`/stats/${gameId}/enter?userId=${userId}`, {
+    method: "POST",
+  });
 
-    await fetch("/uploads", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(upload)
-    });
-
-    alert("Upload criado!");
+  alert("Usuário entrou no jogo!");
 }
 
-async function buscarUpload() {
+async function leaveGame() {
+  const gameId = document.getElementById("leaveGameId").value;
+  const userId = document.getElementById("leaveUserId").value;
 
-    const id = document.getElementById("buscarId").value;
+  await fetch(`/stats/${gameId}/leave?userId=${userId}`, {
+    method: "POST",
+  });
 
-    const response = await fetch("/uploads/" + id);
-
-    if (response.status === 404) {
-        document.getElementById("resultado").innerText = "Upload não encontrado";
-        return;
-    }
-
-    const data = await response.json();
-
-    document.getElementById("resultado").innerText =
-        JSON.stringify(data, null, 2);
+  alert("Usuário saiu do jogo!");
 }
 
-async function atualizarStatus() {
+async function getStats() {
+  const gameId = document.getElementById("statsGameId").value;
 
-    const id = document.getElementById("updateId").value;
-    const status = document.getElementById("novoStatus").value;
+  const response = await fetch(`/stats/${gameId}`);
 
-    await fetch("/uploads/" + id + "?status=" + status, {
-        method: "PUT"
-    });
+  if (response.status === 404) {
+    document.getElementById("statsResult").innerText = "Não encontrado";
+    return;
+  }
 
-    alert("Status atualizado!");
+  const data = await response.json();
+
+  document.getElementById("statsResult").innerText = JSON.stringify(
+    data,
+    null,
+    2,
+  );
 }
 
-async function deletarUpload() {
+async function getUsers() {
+  const gameId = document.getElementById("usersGameId").value;
 
-    const id = document.getElementById("deleteId").value;
+  const response = await fetch(`/stats/${gameId}/users`);
+  const data = await response.json();
 
-    await fetch("/uploads/" + id, {
-        method: "DELETE"
-    });
+  document.getElementById("usersResult").innerText = JSON.stringify(
+    data,
+    null,
+    2,
+  );
+}
 
-    alert("Upload deletado!");
+async function getRanking() {
+  const response = await fetch(`/stats/ranking`);
+  const data = await response.json();
+
+  document.getElementById("rankingResult").innerText = JSON.stringify(
+    data,
+    null,
+    2,
+  );
 }

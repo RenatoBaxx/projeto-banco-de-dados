@@ -9,10 +9,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Upload {
+public class GameStats {
 
     private String gameId;
-    private String loja;
-    private String status;
-
+    private Long online;
+    private Long max;
+    private Long min;
 }
