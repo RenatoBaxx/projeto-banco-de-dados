@@ -16,8 +16,6 @@ public class GameStatsService {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
-    // ---------- MÉTRICAS (HASH) ----------
-
     public void playerEnter(String gameId, String userId) {
 
         String statsKey = "game:" + gameId + ":stats";
@@ -26,11 +24,14 @@ public class GameStatsService {
         // adiciona usuário
         redisTemplate.opsForSet().add(usersKey, userId);
 
-        // incrementa online
-        Long online = redisTemplate.opsForValue()
-                .increment("game:" + gameId + ":online");
+        // pega online atual
+        Object onlineObj = redisTemplate.opsForHash().get(statsKey, "online");
+        Long online = onlineObj != null ? Long.parseLong(onlineObj.toString()) : 0L;
 
-        // 🔥 CRIA/ATUALIZA HASH
+        // incrementa
+        online++;
+
+        // salva online
         redisTemplate.opsForHash().put(statsKey, "online", online.toString());
 
         // max
@@ -58,10 +59,14 @@ public class GameStatsService {
 
         redisTemplate.opsForSet().remove(usersKey, userId);
 
-        Long online = redisTemplate.opsForValue()
-                .decrement("game:" + gameId + ":online");
+        Object onlineObj = redisTemplate.opsForHash().get(statsKey, "online");
+        Long online = onlineObj != null ? Long.parseLong(onlineObj.toString()) : 0L;
 
-        redisTemplate.opsForHash().put(statsKey, "online", online);
+        if (online > 0) {
+            online--;
+        }
+
+        redisTemplate.opsForHash().put(statsKey, "online", online.toString());
     }
 
     public GameStats getStats(String gameId) {
@@ -72,24 +77,31 @@ public class GameStatsService {
 
         if (data.isEmpty()) return null;
 
+        Long online = data.get("online") != null
+                ? Long.parseLong(data.get("online").toString())
+                : 0L;
+
+        Long max = data.get("max") != null
+                ? Long.parseLong(data.get("max").toString())
+                : 0L;
+
+        Long min = data.get("min") != null
+                ? Long.parseLong(data.get("min").toString())
+                : 0L;
+
         return GameStats.builder()
                 .gameId(gameId)
-                .online(Long.parseLong(data.get("online").toString()))
-                .max(Long.parseLong(data.get("max").toString()))
-                .min(Long.parseLong(data.get("min").toString()))
+                .online(online)
+                .max(max)
+                .min(min)
                 .build();
     }
-
-    // ---------- USUÁRIOS ONLINE ----------
 
     public Set<Object> getOnlineUsers(String gameId) {
         return redisTemplate.opsForSet().members("game:" + gameId + ":users");
     }
 
-    // ---------- RANKING ----------
-
     public Set<Object> getTopGames() {
-        return redisTemplate.opsForZSet()
-                .reverseRange("ranking:games", 0, 9);
+        return redisTemplate.opsForZSet().reverseRange("ranking:games", 0, 9);
     }
 }
