@@ -197,7 +197,7 @@ function Dashboard() {
         
 
         <div className="sidebar-footer">
-          <button onClick={() => navigate('/')} className="sidebar-link sidebar-logout">
+          <button onClick={() => { localStorage.removeItem('token'); navigate('/'); }} className="sidebar-link sidebar-logout">
             <span className="sidebar-icon">⬅</span>
             Sair
           </button>

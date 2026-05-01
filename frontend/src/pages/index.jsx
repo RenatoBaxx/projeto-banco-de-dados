@@ -15,8 +15,32 @@ function Index() {
         backgroundColor: '#333',
         color: 'white'
       }}>
-        <div style={{ fontSize: '1.2rem' }}> GameHUB</div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ fontSize: '1.2rem' }}> GameHUB</div>
+          <a
+            href="/jogos"
+            style={{
+              color: '#ccc',
+              textDecoration: 'none',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Jogos
+          </a>
+                    <a
+            href="/rankings"
+            style={{
+              color: '#ccc',
+              textDecoration: 'none',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >
+            Rankings
+          </a>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             onClick={() => navigate('/login')}
             style={{
@@ -47,7 +71,7 @@ function Index() {
       }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '10px' }}>Bem-vindo ao GameHUB</h1>
         <p style={{ fontSize: '1.2rem', color: '#666', maxWidth: '600px', margin: '0 auto' }}>
-          A Startup definitiva para gerenciar o envio e publicação de jogos nas principais plataformas digitais.
+          A Plataforma definitiva para gerenciar o envio e publicação de jogos nas principais plataformas digitais.
         </p>
       </header>
 
@@ -77,8 +101,18 @@ function Index() {
           </div>
 
         </div>
-
-      </main>
+        <div style={{ marginTop: '60px', textAlign: 'center' }}> 
+          <h3 style={{ borderBottom: 'none', marginBottom: '24px', color: '#999', fontSize: '1rem', fontWeight: '400' }}>Empresas que utilizam nossa plataforma</h3>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '40px', opacity: 0.7 }}>
+            <img src="/ubisoft-logo.svg" alt="Ubisoft" style={{ height: '40px', objectFit: 'contain', filter: 'grayscale(100%) brightness(1.5)' }} />
+            <img src="/riot-logo.png" alt="Riot Games" style={{ height: '40px', objectFit: 'contain', filter: 'grayscale(100%) brightness(1.5)' }} />
+            <img src="/nintendo-logo.png" alt="Nintendo" style={{ height: '40px', objectFit: 'contain', filter: 'grayscale(100%) brightness(1.5)' }} />
+            <img src="/Capcom_logo.png" alt="Capcom" style={{ height: '40px', objectFit: 'contain', filter: 'grayscale(100%) brightness(1.5)' }} />
+            <img src="/Konami-Logo.png" alt="Konami" style={{ height: '40px', objectFit: 'contain', filter: 'grayscale(100%) brightness(1.5)' }} />
+            <img src="/ea-logo.png" alt="EA" style={{ height: '40px', objectFit: 'contain', filter: 'grayscale(100%) brightness(1.5)' }} />
+          </div>
+        </div>  
+      </main>   
 
       <footer style={{
         textAlign: 'center',

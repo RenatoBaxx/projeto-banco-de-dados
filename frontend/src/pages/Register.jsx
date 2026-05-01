@@ -4,22 +4,37 @@ import '../App.css';
 
 function Register() {
   const [formData, setFormData] = useState({
-    razaoSocial: '',
+    nomeEmpresa: '',
     cnpj: '',
     email: '',
     password: ''
   });
   const navigate = useNavigate();
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    if (!formData.razaoSocial || !formData.cnpj || !formData.email || !formData.password) {
+    if (!formData.nomeEmpresa || !formData.cnpj || !formData.email || !formData.password) {
       return alert('Preencha todos os campos!');
     }
 
-    console.log('Registering company:', formData);
-    alert('Empresa cadastrada com sucesso!');
-    navigate('/');
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, password: formData.password, nomeEmpresa: formData.nomeEmpresa, cnpj: formData.cnpj }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return alert(data.error || 'Erro ao cadastrar');
+      }
+
+      alert('Empresa cadastrada com sucesso! Verifique seu email.');
+      navigate('/login');
+    } catch (err) {
+      alert('Erro de conexão com o servidor.');
+    }
   };
 
   return (
@@ -43,8 +58,8 @@ function Register() {
                 type="text"
                 className="form-control"
                 placeholder="Nome da sua Empresa LTDA"
-                value={formData.razaoSocial}
-                onChange={e => setFormData({ ...formData, razaoSocial: e.target.value })}
+                value={formData.nomeEmpresa}
+                onChange={e => setFormData({ ...formData, nomeEmpresa: e.target.value })}
               />
             </div>
             <div className="form-group">
