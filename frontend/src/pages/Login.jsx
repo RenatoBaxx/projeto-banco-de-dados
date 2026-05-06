@@ -7,12 +7,28 @@ function Login() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) return alert('Preencha os campos!');
 
-    console.log('Logging in with', email, password);
-    navigate('/dashboard');
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return alert(data.error || 'Erro ao fazer login');
+      }
+
+      localStorage.setItem('token', JSON.stringify(data.data));
+      navigate('/dashboard');
+    } catch (err) {
+      alert('Erro de conexão com o servidor.');
+    }
   };
 
   return (
