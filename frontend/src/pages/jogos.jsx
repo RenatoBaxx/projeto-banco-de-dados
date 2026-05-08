@@ -1,32 +1,77 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
-const MOCK_GAMES = [
-  { id: 1, name: 'Counter Strike', studio: 'Nova Games', genre: 'Ação', players: 12400, platforms: ['Steam', 'Epic Games'], os: ['Windows', 'Linux'], mode: 'Multiplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg' },
-  { id: 2, name: 'Dungeon Depths', studio: 'PixelForge', genre: 'RPG', players: 8300, platforms: ['Steam'], os: ['Windows', 'macOS'], mode: 'Singleplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg' },
-  { id: 3, name: 'Speed Circuit', studio: 'TurboSoft', genre: 'Corrida', players: 25600, platforms: ['Steam', 'PlayStation Store', 'Xbox Store'], os: ['Windows'], mode: 'Multiplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1551360/header.jpg' },
-  { id: 4, name: 'Farm Valley', studio: 'CozyDev', genre: 'Simulação', players: 41200, platforms: ['Steam', 'Google Play'], os: ['Windows', 'Android'], mode: 'Singleplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/413150/header.jpg' },
-  { id: 5, name: 'Shadow Ops', studio: 'DarkByte', genre: 'FPS', players: 53800, platforms: ['Steam', 'Epic Games', 'Xbox Store'], os: ['Windows'], mode: 'Multiplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/header.jpg' },
-  { id: 6, name: 'Puzzle Mind', studio: 'BrainBox', genre: 'Puzzle', players: 6100, platforms: ['Steam', 'Google Play', 'App Store'], os: ['Windows', 'Android', 'iOS'], mode: 'Singleplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/105600/header.jpg' },
-  { id: 7, name: 'Galaxy Builder', studio: 'StarForge', genre: 'Estratégia', players: 18900, platforms: ['Steam'], os: ['Windows', 'macOS', 'Linux'], mode: 'Ambos', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/281990/header.jpg' },
-  { id: 8, name: 'Arena Legends', studio: 'Nova Games', genre: 'MOBA', players: 87500, platforms: ['Steam', 'Epic Games'], os: ['Windows'], mode: 'Multiplayer', status: 'Aprovado', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/570/header.jpg' },
-];
+/** Refetch das métricas Redis; um pouco menor que o tick do backend (~10s) para acompanhar mudanças. */
+const POLL_METRICAS_MS = 5_000;
 
-const GENRES = ['Todos', 'Ação', 'RPG', 'Corrida', 'Simulação', 'FPS', 'Puzzle', 'Estratégia', 'MOBA'];
+function coverSrc(game) {
+  if (!game.capaDisponivel || !game.id) return '/gamehub.png';
+  return `/mongo/arquivos/${game.id}/imagem`;
+}
 
 function Jogos() {
   const navigate = useNavigate();
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(null);
   const [search, setSearch] = useState('');
-  const [genreFilter, setGenreFilter] = useState('Todos');
+  const [statusFilter, setStatusFilter] = useState('Todos');
   const [modeFilter, setModeFilter] = useState('Todos');
 
-  const filtered = MOCK_GAMES.filter(g => {
-    const matchSearch = g.name.toLowerCase().includes(search.toLowerCase()) || g.studio.toLowerCase().includes(search.toLowerCase());
-    const matchGenre = genreFilter === 'Todos' || g.genre === genreFilter;
-    const matchMode = modeFilter === 'Todos' || g.mode === modeFilter;
-    return matchSearch && matchGenre && matchMode;
-  });
+  useEffect(() => {
+    let cancelado = false;
+    let intervalId = null;
+
+    async function carregar(primeiraVez) {
+      if (primeiraVez) {
+        setLoading(true);
+        setErro(null);
+      }
+      try {
+        const res = await fetch('/stats/catalogo/metricas');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelado) setGames(Array.isArray(data) ? data : []);
+        if (!cancelado && primeiraVez) setErro(null);
+      } catch {
+        if (!cancelado && primeiraVez) {
+          setErro('Não foi possível carregar o catálogo com métricas Redis. Verifique backend e Redis.');
+          setGames([]);
+        }
+      } finally {
+        if (!cancelado && primeiraVez) setLoading(false);
+      }
+    }
+
+    carregar(true);
+    intervalId = window.setInterval(() => { carregar(false); }, POLL_METRICAS_MS);
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const statusOpcoes = useMemo(() => {
+    const conjunto = [...new Set(games.map(g => g.status).filter(Boolean))];
+    return ['Todos', ...conjunto.sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'))];
+  }, [games]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return games.filter((g) => {
+      const nome = (g.nome || '').toLowerCase();
+      const desc = (g.descricao || '').toLowerCase();
+      const plats = g.plataformasPublicacao || [];
+      const matchSearch = !q
+        || nome.includes(q)
+        || desc.includes(q)
+        || plats.some((p) => p.toLowerCase().includes(q));
+      const matchStatus = statusFilter === 'Todos' || g.status === statusFilter;
+      const matchMode = modeFilter === 'Todos' || g.modoJogo === modeFilter;
+      return matchSearch && matchStatus && matchMode;
+    });
+  }, [games, search, statusFilter, modeFilter]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -42,7 +87,7 @@ function Jogos() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ fontSize: '1.2rem', cursor: 'pointer' }} onClick={() => navigate('/')}>GameHUB</div>
           <a href="/jogos" style={{ color: '#fff', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '600' }}>Jogos</a>
-          <a href="/#rankings" style={{ color: '#ccc', textDecoration: 'none', fontSize: '0.8rem' }}>Rankings</a>
+          <a href="/rankings" style={{ color: '#ccc', textDecoration: 'none', fontSize: '0.8rem' }}>Rankings</a>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
@@ -61,34 +106,54 @@ function Jogos() {
         </div>
       </nav>
 
-      <header style={{ textAlign: 'center', padding: '40px 20px 20px' }}>
+      <header style={{ textAlign: 'center', padding: '40px 20px 12px' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Catálogo de Jogos</h1>
-        <p style={{ color: '#999', fontSize: '0.95rem' }}>Todos os jogos publicados através da plataforma GameHUB</p>
+        <p style={{ color: '#999', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto' }}>
+          Dados do MongoDB com métricas do Redis (online, pico, popularidade). Atualização automática a cada {POLL_METRICAS_MS / 1000}s.
+        </p>
       </header>
 
       <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', padding: '0 20px' }}>
+
+        {loading && (
+          <p style={{ color: '#888', textAlign: 'center', padding: '32px 0' }}>Carregando jogos…</p>
+        )}
+        {erro && !loading && (
+          <p style={{ color: '#e88', textAlign: 'center', padding: '16px' }}>{erro}</p>
+        )}
+
+        {!loading && !erro && games.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#888' }}>
+            <p style={{ marginBottom: '8px' }}>Nenhum jogo cadastrado no Mongo.</p>
+          </div>
+        )}
+
+        {!loading && !erro && games.length > 0 && (
+        <>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '24px' }}>
           <input
             type="text"
             className="form-control"
-            placeholder="Buscar por nome ou estúdio..."
+            placeholder="Buscar por nome, descrição ou plataforma…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ maxWidth: '300px', flex: '1' }}
+            style={{ maxWidth: '320px', flex: '1' }}
           />
           <select
-            value={genreFilter}
-            onChange={e => setGenreFilter(e.target.value)}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
             className="form-control"
-            style={{ width: 'auto', maxWidth: '160px' }}
+            style={{ width: 'auto', maxWidth: '180px' }}
           >
-            {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
+            {statusOpcoes.map(s => (
+              <option key={s} value={s}>{s === 'Todos' ? 'Todos os status' : s}</option>
+            ))}
           </select>
           <select
             value={modeFilter}
             onChange={e => setModeFilter(e.target.value)}
             className="form-control"
-            style={{ width: 'auto', maxWidth: '160px' }}
+            style={{ width: 'auto', maxWidth: '180px' }}
           >
             <option value="Todos">Todos os modos</option>
             <option value="Singleplayer">Singleplayer</option>
@@ -96,47 +161,67 @@ function Jogos() {
             <option value="Ambos">Ambos</option>
           </select>
           <span style={{ color: '#888', fontSize: '0.85rem', marginLeft: 'auto' }}>
-            {filtered.length} jogo{filtered.length !== 1 ? 's' : ''} encontrado{filtered.length !== 1 ? 's' : ''}
+            {filtered.length} jogo{filtered.length !== 1 ? 's' : ''} exibido{filtered.length !== 1 ? 's' : ''}
           </span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px', paddingBottom: '40px' }}>
-          {filtered.map(game => (
-            <div key={game.id} className="card" style={{ padding: '0', overflow: 'hidden', transition: 'transform 0.2s', cursor: 'pointer' }}>
-              <img
-                src={game.cover}
-                alt={game.name}
-                style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block', background: '#2a2a2a' }}
-              />
-              {/* Info */}
-              <div style={{ padding: '14px' }}>
-                <h3 style={{ fontSize: '1rem', margin: '0 0 4px', borderBottom: 'none' }}>{game.name}</h3>
-                <p style={{ color: '#999', fontSize: '0.8rem', margin: '0 0 10px' }}>{game.studio}</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#333', borderRadius: '10px', color: '#ccc' }}>{game.genre}</span>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#333', borderRadius: '10px', color: '#ccc' }}>{game.mode}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#aaa' }}>{game.players.toLocaleString('pt-BR')} jogadores</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {game.platforms.slice(0, 2).map(p => (
-                      <span key={p} style={{ fontSize: '0.6rem', padding: '2px 6px', border: '1px solid #444', borderRadius: '4px', color: '#aaa' }}>{p}</span>
-                    ))}
-                    {game.platforms.length > 2 && (
-                      <span style={{ fontSize: '0.6rem', padding: '2px 6px', border: '1px solid #444', borderRadius: '4px', color: '#aaa' }}>+{game.platforms.length - 2}</span>
-                    )}
+          {filtered.map((game) => {
+            const plats = game.plataformasPublicacao || [];
+            const loja = plats[0] || '—';
+            const online = game.jogadoresOnline ?? 0;
+            const pico = game.picoJogadoresOnline ?? 0;
+            const pop = game.scorePopularidade ?? 0;
+            return (
+              <div key={game.id} className="card" style={{ padding: '0', overflow: 'hidden', transition: 'transform 0.2s', cursor: 'pointer' }}>
+                <img
+                  src={coverSrc(game)}
+                  alt={game.nome || ''}
+                  style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block', background: '#2a2a2a' }}
+                  onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
+                />
+                <div style={{ padding: '14px' }}>
+                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px', borderBottom: 'none' }}>{game.nome || '—'}</h3>
+                  <p style={{ color: '#999', fontSize: '0.8rem', margin: '0 0 8px' }}>{loja}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '10px', fontSize: '0.68rem', textAlign: 'center' }}>
+                    <span style={{ padding: '4px', background: '#1e3d1e', borderRadius: '6px', color: '#9f9' }}>
+                      Online<br /><strong>{online}</strong>
+                    </span>
+                    <span style={{ padding: '4px', background: '#333', borderRadius: '6px', color: '#ccc' }}>
+                      Pico<br /><strong>{pico}</strong>
+                    </span>
+                    <span style={{ padding: '4px', background: '#1a2744', borderRadius: '6px', color: '#9ec8ff' }}>
+                      Pop.<br /><strong>{typeof pop === 'number' ? pop.toLocaleString('pt-BR', { maximumFractionDigits: 0 }) : pop}</strong>
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#333', borderRadius: '10px', color: '#ccc' }}>{game.status || '—'}</span>
+                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#333', borderRadius: '10px', color: '#ccc' }}>{game.modoJogo || '—'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#cce', fontWeight: '600' }}>{game.preco || '—'}</span>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {plats.slice(0, 2).map((p) => (
+                        <span key={p} style={{ fontSize: '0.6rem', padding: '2px 6px', border: '1px solid #444', borderRadius: '4px', color: '#aaa' }}>{p}</span>
+                      ))}
+                      {plats.length > 2 && (
+                        <span style={{ fontSize: '0.6rem', padding: '2px 6px', border: '1px solid #444', borderRadius: '4px', color: '#aaa' }}>+{plats.length - 2}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {filtered.length === 0 && (
+        {filtered.length === 0 && games.length > 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
             <p style={{ fontSize: '2rem', marginBottom: '8px' }}>😕</p>
             <p>Nenhum jogo encontrado com esses filtros.</p>
           </div>
+        )}
+        </>
         )}
       </div>
 
