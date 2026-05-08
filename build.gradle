@@ -21,7 +21,9 @@ repositories {
 dependencies {
 	// implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	// implementation 'org.springframework.boot:spring-boot-starter-mongodb'
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+	implementation(platform("org.mongodb:mongodb-driver-bom:5.6.5"))
+	implementation("org.mongodb:mongodb-driver-sync")
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation(platform("me.paulschwarz:spring-dotenv-bom:5.1.0"))
 	compileOnly 'org.projectlombok:lombok'
@@ -33,7 +35,7 @@ dependencies {
 	// testImplementation 'org.springframework.boot:spring-boot-starter-mongodb-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	developmentOnly("me.paulschwarz:springboot4-dotenv")
+	developmentOnly("me.paulschwarz:springboot4-dotenv:5.1.0")
 }
 
 tasks.named('test') {
