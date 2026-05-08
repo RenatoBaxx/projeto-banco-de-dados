@@ -6,11 +6,19 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/mongo': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
       '/uploads': {
         target: 'http://localhost:8080',
         changeOrigin: true
       },
       '/auth': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/catalog': {
         target: 'http://localhost:8080',
         changeOrigin: true
       }

@@ -51,7 +51,7 @@ public class AuthService {
 
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
-            error.put("error", "Erro ao cadastrar: " + e.getMessage());
+            error.put("error", buildCadastroErrorMessage(email, e));
             return error;
         }
     }
@@ -133,5 +133,18 @@ public class AuthService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static String buildCadastroErrorMessage(String email, Exception e) {
+        String exceptionType = e.getClass().getName();
+        String message = e.getMessage();
+        Throwable cause = e.getCause();
+        String causeType = cause == null ? null : cause.getClass().getName();
+        String causeMessage = cause == null ? null : cause.getMessage();
+
+        return "Erro ao cadastrar (email=" + email + "). Excecao=" + exceptionType
+                + ", mensagem=" + message
+                + ", causa=" + causeType
+                + ", causaMensagem=" + causeMessage;
     }
 }

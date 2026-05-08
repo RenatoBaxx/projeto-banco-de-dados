@@ -9,6 +9,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Documento de jogo/arquivo no catálogo: metadados + referência ao .zip em disco.
+ * Coleção mantém o nome {@code arquivos} (legado).
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,14 +22,25 @@ public class ArquivoDocumento {
     @Id
     private String id;
 
-    private String arquivo;
-
     private String nome;
 
     private String descricao;
 
-    private List<String> categorias;
+    private String preco;
 
-    private List<String> requisitos;
+    private List<String> sistemasOperacionais;
+
+    private String modoJogo;
+
+    private List<String> plataformasPublicacao;
+
+    private String arquivoNome;
+
+    private long arquivoTamanhoBytes;
+
+    /** Caminho absoluto normalizado do .zip gravado no servidor. */
+    private String arquivoCaminhoRelativo;
+
+    /** Ex.: PENDENTE, CONCLUIDO */
+    private String status;
 }
-

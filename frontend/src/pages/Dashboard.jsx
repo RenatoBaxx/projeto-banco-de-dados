@@ -18,6 +18,7 @@ function Dashboard() {
     file: null,
   });
   const [pubSubmitted, setPubSubmitted] = useState(false);
+  const [pubSubmitting, setPubSubmitting] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleOsToggle = (os) => {
@@ -54,7 +55,31 @@ function Dashboard() {
   };
 
   const handlePublish = async () => {
-    setPubSubmitted(true);
+    if (!canAdvance()) return;
+    setPubSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('nome', pubData.name.trim());
+      fd.append('descricao', pubData.description.trim());
+      fd.append('preco', pubData.price.trim());
+      fd.append('os', JSON.stringify(pubData.os));
+      fd.append('modo', pubData.mode);
+      fd.append('platforms', JSON.stringify(pubData.platforms));
+      fd.append('arquivo', pubData.file);
+
+      const res = await fetch('/mongo/arquivos/publicar', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Erro ao publicar o jogo.');
+        return;
+      }
+      setPubSubmitted(true);
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      setPubSubmitting(false);
+    }
   };
 
   const resetPublish = () => {
@@ -73,7 +98,7 @@ function Dashboard() {
   const fetchAllUploads = async () => {
     setUploadsLoading(true);
     try {
-      const res = await fetch('/uploads');
+      const res = await fetch('/mongo/arquivos/dashboard');
       if (res.ok) {
         const data = await res.json();
         setAllUploads(data);
@@ -126,9 +151,10 @@ function Dashboard() {
     if (!updateData.id || !updateData.status) return alert("Preencha ID e Novo Status");
 
     try {
-      const res = await fetch(`/uploads/${updateData.id}?status=${updateData.status}`, {
-        method: "PUT"
-      });
+      const res = await fetch(
+        `/mongo/arquivos/${encodeURIComponent(updateData.id)}/status?status=${encodeURIComponent(updateData.status)}`,
+        { method: 'PUT' }
+      );
       if (res.ok) {
         alert("Status atualizado com sucesso!");
         setUpdateData({ id: '', status: '' });
@@ -147,8 +173,8 @@ function Dashboard() {
     if (!confirm(`Tem certeza que deseja deletar o upload ${deleteId}?`)) return;
 
     try {
-      const res = await fetch("/uploads/" + deleteId, {
-        method: "DELETE"
+      const res = await fetch('/mongo/arquivos/' + encodeURIComponent(deleteId), {
+        method: 'DELETE'
       });
       if (res.ok) {
         alert("Upload deletado com sucesso!");
@@ -375,11 +401,11 @@ function Dashboard() {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={!canAdvance()}
+                        disabled={!canAdvance() || pubSubmitting}
                         onClick={handlePublish}
                         style={{ marginLeft: 'auto' }}
                       >
-                        Publicar Jogo
+                        {pubSubmitting ? 'Enviando...' : 'Publicar Jogo'}
                       </button>
                     )}
                   </div>
