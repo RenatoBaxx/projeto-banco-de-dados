@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -43,4 +45,14 @@ public class ArquivoDocumento {
 
     /** Ex.: PENDENTE, CONCLUIDO */
     private String status;
+
+    /** Nome original do arquivo de capa (banner). */
+    private String imagemNome;
+
+    /** MIME da capa, ex.: image/jpeg */
+    private String imagemContentType;
+
+    /** Bytes da imagem armazenados no MongoDB ( BSON ). */
+    @JsonIgnore
+    private byte[] imagemDados;
 }

@@ -81,9 +81,6 @@ function Rankings() {
 
       <header style={{ textAlign: 'center', padding: '40px 20px 10px' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Ranking de Jogos</h1>
-        <p style={{ color: '#999', fontSize: '0.95rem' }}>
-          Ordem aleatória recalculada a cada reinício do servidor (cache Redis alimentado pelo MongoDB).
-        </p>
       </header>
 
       {loading && (
@@ -111,7 +108,12 @@ function Rankings() {
               border: `2px solid ${medalColor(game.posicao)}`,
               textAlign: 'center',
             }}>
-              <img src="/gamehub.png" alt="" style={{ width: '100%', height: '120px', objectFit: 'contain', background: '#1a1a1a', padding: '12px' }} />
+              <img
+                src={game.capaDisponivel ? `/mongo/arquivos/${game.id}/imagem` : '/gamehub.png'}
+                alt=""
+                style={{ width: '100%', height: '120px', objectFit: 'cover', background: '#1a1a1a' }}
+                onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
+              />
               <div style={{ padding: '14px' }}>
                 <span style={{ fontSize: '1.5rem', fontWeight: '700', color: medalColor(game.posicao) }}>
                   {game.posicao === 1 ? '🥇' : game.posicao === 2 ? '🥈' : '🥉'}
@@ -150,7 +152,12 @@ function Rankings() {
                   </td>
                   <td style={{ padding: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img src="/gamehub.png" alt="" style={{ width: '48px', height: '28px', objectFit: 'contain', borderRadius: '4px', background: '#222' }} />
+                      <img
+                        src={game.capaDisponivel ? `/mongo/arquivos/${game.id}/imagem` : '/gamehub.png'}
+                        alt=""
+                        style={{ width: '48px', height: '28px', objectFit: 'cover', borderRadius: '4px', background: '#222' }}
+                        onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
+                      />
                       <span style={{ fontWeight: '600', color: '#f7f7f7' }}>{game.nome || '—'}</span>
                     </div>
                   </td>

@@ -16,5 +16,6 @@ public record RankingJogoItemResponse(
         String arquivoNome,
         long arquivoTamanhoBytes,
         List<String> sistemasOperacionais,
-        List<String> plataformasPublicacao) {
+        List<String> plataformasPublicacao,
+        boolean capaDisponivel) {
 }

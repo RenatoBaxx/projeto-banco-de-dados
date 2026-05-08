@@ -15,11 +15,13 @@ function Dashboard() {
     os: [],
     mode: '',
     platforms: [],
+    coverImage: null,
     file: null,
   });
   const [pubSubmitted, setPubSubmitted] = useState(false);
   const [pubSubmitting, setPubSubmitting] = useState(false);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   const handleOsToggle = (os) => {
     setPubData(prev => ({
@@ -33,6 +35,17 @@ function Dashboard() {
       ...prev,
       platforms: prev.platforms.includes(p) ? prev.platforms.filter(x => x !== p) : [...prev.platforms, p]
     }));
+  };
+
+  const handleCoverSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Selecione uma imagem (JPEG, PNG, WebP ou GIF).');
+      e.target.value = '';
+      return;
+    }
+    setPubData(prev => ({ ...prev, coverImage: file }));
   };
 
   const handleFileSelect = (e) => {
@@ -49,7 +62,7 @@ function Dashboard() {
     switch (pubStep) {
       case 1: return pubData.name.trim() !== '';
       case 2: return pubData.description.trim() !== '' && pubData.price.trim() !== '' && pubData.os.length > 0 && pubData.mode !== '' && pubData.platforms.length > 0;
-      case 3: return pubData.file !== null;
+      case 3: return pubData.coverImage !== null && pubData.file !== null;
       default: return false;
     }
   };
@@ -65,6 +78,7 @@ function Dashboard() {
       fd.append('os', JSON.stringify(pubData.os));
       fd.append('modo', pubData.mode);
       fd.append('platforms', JSON.stringify(pubData.platforms));
+      fd.append('imagem', pubData.coverImage);
       fd.append('arquivo', pubData.file);
 
       const res = await fetch('/mongo/arquivos/publicar', { method: 'POST', body: fd });
@@ -84,9 +98,10 @@ function Dashboard() {
 
   const resetPublish = () => {
     setPubStep(1);
-    setPubData({ name: '', description: '', price: '', os: [], mode: '', platforms: [], file: null });
+    setPubData({ name: '', description: '', price: '', os: [], mode: '', platforms: [], coverImage: null, file: null });
     setPubSubmitted(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
   const [allUploads, setAllUploads] = useState([]);
@@ -347,33 +362,67 @@ function Dashboard() {
 
                   {pubStep === 3 && (
                     <div className="wizard-body">
-                      <h2>Enviar Arquivo</h2>
-                      <p className="wizard-hint">Selecione o arquivo <strong>.zip</strong> do seu jogo.</p>
+                      <h2>Capa e pacote</h2>
+                      <p className="wizard-hint">
+                        Envie a <strong>imagem de capa</strong> (armazenada no MongoDB) e o <strong>.zip</strong> do jogo (gravado em disco).
+                      </p>
 
-                      <div
-                        className="upload-dropzone"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        {pubData.file ? (
-                          <>
-                            <span className="upload-icon">📦</span>
-                            <span className="upload-filename">{pubData.file.name}</span>
-                            <span className="upload-size">{(pubData.file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="upload-icon">📁</span>
-                            <span>Clique para selecionar o arquivo .zip</span>
-                          </>
-                        )}
+                      <div className="form-group" style={{ width: '100%' }}>
+                        <label>Imagem de capa (JPEG, PNG, WebP ou GIF — máx. 5 MB)</label>
+                        <div
+                          className="upload-dropzone"
+                          onClick={() => imageInputRef.current?.click()}
+                          style={{ marginBottom: '1rem' }}
+                        >
+                          {pubData.coverImage ? (
+                            <>
+                              <span className="upload-icon">🖼️</span>
+                              <span className="upload-filename">{pubData.coverImage.name}</span>
+                              <span className="upload-size">{(pubData.coverImage.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="upload-icon">📷</span>
+                              <span>Clique para selecionar a imagem de capa</span>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          style={{ display: 'none' }}
+                          onChange={handleCoverSelect}
+                        />
                       </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".zip"
-                        style={{ display: 'none' }}
-                        onChange={handleFileSelect}
-                      />
+
+                      <div className="form-group" style={{ width: '100%' }}>
+                        <label>Arquivo do jogo (.zip)</label>
+                        <div
+                          className="upload-dropzone"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {pubData.file ? (
+                            <>
+                              <span className="upload-icon">📦</span>
+                              <span className="upload-filename">{pubData.file.name}</span>
+                              <span className="upload-size">{(pubData.file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="upload-icon">📁</span>
+                              <span>Clique para selecionar o arquivo .zip</span>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".zip"
+                          style={{ display: 'none' }}
+                          onChange={handleFileSelect}
+                        />
+                      </div>
                     </div>
                   )}
 

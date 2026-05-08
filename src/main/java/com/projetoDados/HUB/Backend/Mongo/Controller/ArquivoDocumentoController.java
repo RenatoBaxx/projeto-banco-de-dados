@@ -43,12 +43,13 @@ public class ArquivoDocumentoController {
             @RequestParam("os") String osJson,
             @RequestParam("modo") String modo,
             @RequestParam("platforms") String platformsJson,
+            @RequestParam("imagem") MultipartFile imagem,
             @RequestParam("arquivo") MultipartFile arquivo) {
         try {
             ArquivoDocumento salvo = service.criarComUpload(
-                    nome, descricao, preco, osJson, modo, platformsJson, arquivo);
+                    nome, descricao, preco, osJson, modo, platformsJson, imagem, arquivo);
             return ResponseEntity.ok(Map.of("id", salvo.getId(), "message", "Jogo registrado com sucesso"));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -61,6 +62,15 @@ public class ArquivoDocumentoController {
     @GetMapping
     public ResponseEntity<List<ArquivoDocumento>> listar() {
         return ResponseEntity.ok(service.listar());
+    }
+
+    @GetMapping("/{id}/imagem")
+    public ResponseEntity<byte[]> getImagemCapa(@PathVariable String id) {
+        return service.buscarImagem(id)
+                .map(p -> ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(p.contentType()))
+                        .body(p.dados()))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}")

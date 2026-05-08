@@ -47,22 +47,61 @@ public class CatalogoJogoRankingService {
 
         for (ArquivoDocumento j : embaralhados) {
             String id = Objects.requireNonNull(j.getId(), "id Mongo nulo");
-            String hashKey = HASH_PREFIX + id;
-            redisTemplate.opsForHash().put(hashKey, "nome", str(j.getNome()));
-            redisTemplate.opsForHash().put(hashKey, "descricao", str(j.getDescricao()));
-            redisTemplate.opsForHash().put(hashKey, "preco", str(j.getPreco()));
-            redisTemplate.opsForHash().put(hashKey, "modoJogo", str(j.getModoJogo()));
-            redisTemplate.opsForHash().put(hashKey, "status", str(j.getStatus()));
-            redisTemplate.opsForHash().put(hashKey, "arquivoNome", str(j.getArquivoNome()));
-            redisTemplate.opsForHash().put(hashKey, "arquivoTamanhoBytes", Long.toString(j.getArquivoTamanhoBytes()));
-            redisTemplate.opsForHash().put(hashKey, "arquivoCaminhoRelativo", str(j.getArquivoCaminhoRelativo()));
-            redisTemplate.opsForHash().put(hashKey, "sistemas", joinListas(j.getSistemasOperacionais()));
-            redisTemplate.opsForHash().put(hashKey, "plataformas", joinListas(j.getPlataformasPublicacao()));
-
+            gravarHashJogo(j);
             redisTemplate.opsForList().rightPush(ORDEM_KEY, id);
             redisTemplate.opsForSet().add(IDS_SET_KEY, id);
         }
         log.info("Catalogo Redis: {} jogo(s) indexados, ordem aleatoria.", embaralhados.size());
+    }
+
+    /**
+     * Grava ou atualiza um jogo no Redis. Se for novo no catálogo, entra no fim do ranking.
+     */
+    public void sincronizarDocumentoNoRedis(ArquivoDocumento j) {
+        if (j == null || j.getId() == null) {
+            return;
+        }
+        try {
+            gravarHashJogo(j);
+            Boolean existe = redisTemplate.opsForSet().isMember(IDS_SET_KEY, j.getId());
+            if (!Boolean.TRUE.equals(existe)) {
+                redisTemplate.opsForList().rightPush(ORDEM_KEY, j.getId());
+                redisTemplate.opsForSet().add(IDS_SET_KEY, j.getId());
+                log.debug("Catalogo Redis: novo id {} adicionado ao fim do ranking.", j.getId());
+            }
+        } catch (DataAccessException e) {
+            log.warn("Catalogo Redis: falha ao sincronizar jogo id={} : {}", j.getId(), e.getMessage());
+        }
+    }
+
+    public void removerDocumentoDoRedis(String id) {
+        if (id == null || id.isBlank()) {
+            return;
+        }
+        try {
+            redisTemplate.delete(HASH_PREFIX + id);
+            redisTemplate.opsForSet().remove(IDS_SET_KEY, id);
+            redisTemplate.opsForList().remove(ORDEM_KEY, 1, id);
+        } catch (DataAccessException e) {
+            log.warn("Catalogo Redis: falha ao remover id={} : {}", id, e.getMessage());
+        }
+    }
+
+    private void gravarHashJogo(ArquivoDocumento j) {
+        String id = Objects.requireNonNull(j.getId());
+        String hashKey = HASH_PREFIX + id;
+        redisTemplate.opsForHash().put(hashKey, "nome", str(j.getNome()));
+        redisTemplate.opsForHash().put(hashKey, "descricao", str(j.getDescricao()));
+        redisTemplate.opsForHash().put(hashKey, "preco", str(j.getPreco()));
+        redisTemplate.opsForHash().put(hashKey, "modoJogo", str(j.getModoJogo()));
+        redisTemplate.opsForHash().put(hashKey, "status", str(j.getStatus()));
+        redisTemplate.opsForHash().put(hashKey, "arquivoNome", str(j.getArquivoNome()));
+        redisTemplate.opsForHash().put(hashKey, "arquivoTamanhoBytes", Long.toString(j.getArquivoTamanhoBytes()));
+        redisTemplate.opsForHash().put(hashKey, "arquivoCaminhoRelativo", str(j.getArquivoCaminhoRelativo()));
+        redisTemplate.opsForHash().put(hashKey, "sistemas", joinListas(j.getSistemasOperacionais()));
+        redisTemplate.opsForHash().put(hashKey, "plataformas", joinListas(j.getPlataformasPublicacao()));
+        boolean capa = j.getImagemDados() != null && j.getImagemDados().length > 0;
+        redisTemplate.opsForHash().put(hashKey, "temCapa", capa ? "1" : "0");
     }
 
     public List<RankingJogoItemResponse> listarRanking() {
@@ -107,6 +146,7 @@ public class CatalogoJogoRankingService {
         long tamanho = parseLongo(getCampo(hashKey, "arquivoTamanhoBytes"));
         var sistemas = splitListas(getCampo(hashKey, "sistemas"));
         var plataformas = splitListas(getCampo(hashKey, "plataformas"));
+        boolean capaDisponivel = "1".equals(getCampo(hashKey, "temCapa"));
 
         return new RankingJogoItemResponse(
                 posicao,
@@ -119,7 +159,8 @@ public class CatalogoJogoRankingService {
                 arquivoNome,
                 tamanho,
                 sistemas,
-                plataformas);
+                plataformas,
+                capaDisponivel);
     }
 
     private String getCampo(String hashKey, String campo) {

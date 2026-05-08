@@ -5,7 +5,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.projetoDados.HUB.Backend.Mongo.DTO.ArquivoDocumentoDashboardItemDTO;
+import com.projetoDados.HUB.Backend.Mongo.DTO.ImagemPayload;
 import com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento;
 import com.projetoDados.HUB.Backend.Mongo.Repository.ArquivoDocumentoRepository;
+import com.projetoDados.HUB.Backend.Redis.Service.CatalogoJogoRankingService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +28,16 @@ public class ArquivoDocumentoService {
 
     private static final String STATUS_PENDENTE = "PENDENTE";
 
+    private static final long IMAGEM_MAX_BYTES = 5 * 1024 * 1024L;
+
+    private static final Set<String> IMAGEM_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/gif");
+
     private final ArquivoDocumentoRepository repository;
+    private final CatalogoJogoRankingService catalogoJogoRankingService;
 
     @Value("${app.uploads.jogos-dir:uploads/games}")
     private String jogosDirRelativo;
@@ -34,7 +47,9 @@ public class ArquivoDocumentoService {
         if (novo.getStatus() == null || novo.getStatus().isBlank()) {
             novo.setStatus(STATUS_PENDENTE);
         }
-        return repository.save(novo);
+        ArquivoDocumento salvo = repository.save(novo);
+        catalogoJogoRankingService.sincronizarDocumentoNoRedis(salvo);
+        return salvo;
     }
 
     public ArquivoDocumento criarComUpload(
@@ -44,7 +59,11 @@ public class ArquivoDocumentoService {
             String osJson,
             String modo,
             String platformsJson,
+            MultipartFile imagem,
             MultipartFile arquivo) {
+        if (imagem == null || imagem.isEmpty()) {
+            throw new IllegalArgumentException("imagem ausente ou vazia; esperado jpeg/png/webp/gif, recebido=null");
+        }
         if (arquivo == null || arquivo.isEmpty()) {
             throw new IllegalArgumentException("arquivo ausente ou vazio; esperado .zip, recebido=null");
         }
@@ -52,6 +71,7 @@ public class ArquivoDocumentoService {
             throw new IllegalArgumentException(
                     "arquivo invalido; esperado extensao .zip, recebido=" + arquivo.getOriginalFilename());
         }
+        ImagemPayload capa = lerImagemValidada(imagem);
         List<String> os = parseListaStringJson(osJson, "os");
         List<String> plataformas = parseListaStringJson(platformsJson, "platforms");
         if (os.isEmpty()) {
@@ -72,11 +92,16 @@ public class ArquivoDocumentoService {
         novo.setArquivoNome(arquivo.getOriginalFilename());
         novo.setArquivoTamanhoBytes(arquivo.getSize());
         novo.setStatus(STATUS_PENDENTE);
+        novo.setImagemNome(imagem.getOriginalFilename());
+        novo.setImagemContentType(capa.contentType());
+        novo.setImagemDados(capa.dados());
 
         ArquivoDocumento salvo = repository.save(novo);
         Path destino = salvarArquivoEmDisco(salvo.getId(), arquivo);
         salvo.setArquivoCaminhoRelativo(destino.toString().replace("\\", "/"));
-        return repository.save(salvo);
+        ArquivoDocumento finalDoc = repository.save(salvo);
+        catalogoJogoRankingService.sincronizarDocumentoNoRedis(finalDoc);
+        return finalDoc;
     }
 
     public List<ArquivoDocumento> listar() {
@@ -91,14 +116,30 @@ public class ArquivoDocumentoService {
         return repository.findById(id);
     }
 
+    public Optional<ImagemPayload> buscarImagem(String id) {
+        return repository.findById(id)
+                .filter(d -> d.getImagemDados() != null && d.getImagemDados().length > 0)
+                .map(d -> new ImagemPayload(
+                        d.getImagemDados(),
+                        d.getImagemContentType() != null && !d.getImagemContentType().isBlank()
+                                ? d.getImagemContentType()
+                                : "application/octet-stream"));
+    }
+
     public Optional<ArquivoDocumento> atualizar(String id, ArquivoDocumento atualizacao) {
-        return repository.findById(id).map(existente -> salvarAtualizacao(existente, atualizacao));
+        return repository.findById(id).map(existente -> {
+            ArquivoDocumento salvo = salvarAtualizacao(existente, atualizacao);
+            catalogoJogoRankingService.sincronizarDocumentoNoRedis(salvo);
+            return salvo;
+        });
     }
 
     public Optional<ArquivoDocumento> atualizarStatus(String id, String status) {
         return repository.findById(id).map(doc -> {
             doc.setStatus(status);
-            return repository.save(doc);
+            ArquivoDocumento salvo = repository.save(doc);
+            catalogoJogoRankingService.sincronizarDocumentoNoRedis(salvo);
+            return salvo;
         });
     }
 
@@ -110,6 +151,7 @@ public class ArquivoDocumentoService {
         ArquivoDocumento doc = opt.get();
         apagarZipSeExistir(doc.getArquivoCaminhoRelativo());
         repository.deleteById(id);
+        catalogoJogoRankingService.removerDocumentoDoRedis(id);
         return true;
     }
 
@@ -124,6 +166,9 @@ public class ArquivoDocumentoService {
         existente.setArquivoTamanhoBytes(atualizacao.getArquivoTamanhoBytes());
         existente.setArquivoCaminhoRelativo(atualizacao.getArquivoCaminhoRelativo());
         existente.setStatus(atualizacao.getStatus());
+        existente.setImagemNome(atualizacao.getImagemNome());
+        existente.setImagemContentType(atualizacao.getImagemContentType());
+        existente.setImagemDados(atualizacao.getImagemDados());
         return repository.save(existente);
     }
 
@@ -223,6 +268,26 @@ public class ArquivoDocumentoService {
         try {
             Files.deleteIfExists(Path.of(caminho));
         } catch (IOException ignored) {
+        }
+    }
+
+    private static ImagemPayload lerImagemValidada(MultipartFile imagem) {
+        String ct = imagem.getContentType() != null
+                ? imagem.getContentType().toLowerCase(Locale.ROOT).split(";")[0].trim()
+                : "";
+        if (!IMAGEM_TYPES.contains(ct)) {
+            throw new IllegalArgumentException(
+                    "imagem invalida; esperado Content-Type image/jpeg|image/png|image/webp|image/gif, recebido="
+                            + imagem.getContentType());
+        }
+        if (imagem.getSize() > IMAGEM_MAX_BYTES) {
+            throw new IllegalArgumentException(
+                    "imagem muito grande; max=" + IMAGEM_MAX_BYTES + " bytes, recebido=" + imagem.getSize());
+        }
+        try {
+            return new ImagemPayload(imagem.getBytes(), ct);
+        } catch (IOException e) {
+            throw new IllegalStateException("falha ao ler bytes da imagem: " + e.getMessage(), e);
         }
     }
 }
