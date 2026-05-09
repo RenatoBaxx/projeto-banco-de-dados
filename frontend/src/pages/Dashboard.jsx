@@ -15,10 +15,13 @@ function Dashboard() {
     os: [],
     mode: '',
     platforms: [],
+    coverImage: null,
     file: null,
   });
   const [pubSubmitted, setPubSubmitted] = useState(false);
+  const [pubSubmitting, setPubSubmitting] = useState(false);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   const handleOsToggle = (os) => {
     setPubData(prev => ({
@@ -32,6 +35,17 @@ function Dashboard() {
       ...prev,
       platforms: prev.platforms.includes(p) ? prev.platforms.filter(x => x !== p) : [...prev.platforms, p]
     }));
+  };
+
+  const handleCoverSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Selecione uma imagem (JPEG, PNG, WebP ou GIF).');
+      e.target.value = '';
+      return;
+    }
+    setPubData(prev => ({ ...prev, coverImage: file }));
   };
 
   const handleFileSelect = (e) => {
@@ -48,20 +62,46 @@ function Dashboard() {
     switch (pubStep) {
       case 1: return pubData.name.trim() !== '';
       case 2: return pubData.description.trim() !== '' && pubData.price.trim() !== '' && pubData.os.length > 0 && pubData.mode !== '' && pubData.platforms.length > 0;
-      case 3: return pubData.file !== null;
+      case 3: return pubData.coverImage !== null && pubData.file !== null;
       default: return false;
     }
   };
 
   const handlePublish = async () => {
-    setPubSubmitted(true);
+    if (!canAdvance()) return;
+    setPubSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('nome', pubData.name.trim());
+      fd.append('descricao', pubData.description.trim());
+      fd.append('preco', pubData.price.trim());
+      fd.append('os', JSON.stringify(pubData.os));
+      fd.append('modo', pubData.mode);
+      fd.append('platforms', JSON.stringify(pubData.platforms));
+      fd.append('imagem', pubData.coverImage);
+      fd.append('arquivo', pubData.file);
+
+      const res = await fetch('/mongo/arquivos/publicar', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Erro ao publicar o jogo.');
+        return;
+      }
+      setPubSubmitted(true);
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão com o servidor.');
+    } finally {
+      setPubSubmitting(false);
+    }
   };
 
   const resetPublish = () => {
     setPubStep(1);
-    setPubData({ name: '', description: '', price: '', os: [], mode: '', platforms: [], file: null });
+    setPubData({ name: '', description: '', price: '', os: [], mode: '', platforms: [], coverImage: null, file: null });
     setPubSubmitted(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
   const [allUploads, setAllUploads] = useState([]);
@@ -73,7 +113,7 @@ function Dashboard() {
   const fetchAllUploads = async () => {
     setUploadsLoading(true);
     try {
-      const res = await fetch('/uploads');
+      const res = await fetch('/mongo/arquivos/dashboard');
       if (res.ok) {
         const data = await res.json();
         setAllUploads(data);
@@ -126,9 +166,10 @@ function Dashboard() {
     if (!updateData.id || !updateData.status) return alert("Preencha ID e Novo Status");
 
     try {
-      const res = await fetch(`/uploads/${updateData.id}?status=${updateData.status}`, {
-        method: "PUT"
-      });
+      const res = await fetch(
+        `/mongo/arquivos/${encodeURIComponent(updateData.id)}/status?status=${encodeURIComponent(updateData.status)}`,
+        { method: 'PUT' }
+      );
       if (res.ok) {
         alert("Status atualizado com sucesso!");
         setUpdateData({ id: '', status: '' });
@@ -147,8 +188,8 @@ function Dashboard() {
     if (!confirm(`Tem certeza que deseja deletar o upload ${deleteId}?`)) return;
 
     try {
-      const res = await fetch("/uploads/" + deleteId, {
-        method: "DELETE"
+      const res = await fetch('/mongo/arquivos/' + encodeURIComponent(deleteId), {
+        method: 'DELETE'
       });
       if (res.ok) {
         alert("Upload deletado com sucesso!");
@@ -321,33 +362,67 @@ function Dashboard() {
 
                   {pubStep === 3 && (
                     <div className="wizard-body">
-                      <h2>Enviar Arquivo</h2>
-                      <p className="wizard-hint">Selecione o arquivo <strong>.zip</strong> do seu jogo.</p>
+                      <h2>Capa e pacote</h2>
+                      <p className="wizard-hint">
+                        Envie a <strong>imagem de capa</strong> (armazenada no MongoDB) e o <strong>.zip</strong> do jogo (gravado em disco).
+                      </p>
 
-                      <div
-                        className="upload-dropzone"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        {pubData.file ? (
-                          <>
-                            <span className="upload-icon">📦</span>
-                            <span className="upload-filename">{pubData.file.name}</span>
-                            <span className="upload-size">{(pubData.file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="upload-icon">📁</span>
-                            <span>Clique para selecionar o arquivo .zip</span>
-                          </>
-                        )}
+                      <div className="form-group" style={{ width: '100%' }}>
+                        <label>Imagem de capa (JPEG, PNG, WebP ou GIF — máx. 5 MB)</label>
+                        <div
+                          className="upload-dropzone"
+                          onClick={() => imageInputRef.current?.click()}
+                          style={{ marginBottom: '1rem' }}
+                        >
+                          {pubData.coverImage ? (
+                            <>
+                              <span className="upload-icon">🖼️</span>
+                              <span className="upload-filename">{pubData.coverImage.name}</span>
+                              <span className="upload-size">{(pubData.coverImage.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="upload-icon">📷</span>
+                              <span>Clique para selecionar a imagem de capa</span>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          style={{ display: 'none' }}
+                          onChange={handleCoverSelect}
+                        />
                       </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".zip"
-                        style={{ display: 'none' }}
-                        onChange={handleFileSelect}
-                      />
+
+                      <div className="form-group" style={{ width: '100%' }}>
+                        <label>Arquivo do jogo (.zip)</label>
+                        <div
+                          className="upload-dropzone"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {pubData.file ? (
+                            <>
+                              <span className="upload-icon">📦</span>
+                              <span className="upload-filename">{pubData.file.name}</span>
+                              <span className="upload-size">{(pubData.file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="upload-icon">📁</span>
+                              <span>Clique para selecionar o arquivo .zip</span>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".zip"
+                          style={{ display: 'none' }}
+                          onChange={handleFileSelect}
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -375,11 +450,11 @@ function Dashboard() {
                       <button
                         type="button"
                         className="btn btn-primary"
-                        disabled={!canAdvance()}
+                        disabled={!canAdvance() || pubSubmitting}
                         onClick={handlePublish}
                         style={{ marginLeft: 'auto' }}
                       >
-                        Publicar Jogo
+                        {pubSubmitting ? 'Enviando...' : 'Publicar Jogo'}
                       </button>
                     )}
                   </div>

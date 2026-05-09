@@ -25,6 +25,7 @@ dependencies {
 	implementation(platform("org.mongodb:mongodb-driver-bom:5.6.5"))
 	implementation("org.mongodb:mongodb-driver-sync")
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-json'
 	implementation(platform("me.paulschwarz:spring-dotenv-bom:5.1.0"))
 	compileOnly 'org.projectlombok:lombok'
   	annotationProcessor 'org.projectlombok:lombok'

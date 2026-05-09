@@ -1,21 +1,53 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
-const RANKING_DATA = [
-  { pos: 1, name: 'Arena Legends', studio: 'Nova Games', players: 87500, genre: 'MOBA', trend: '+12%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/570/header.jpg' },
-  { pos: 2, name: 'Shadow Ops', studio: 'DarkByte', players: 53800, genre: 'FPS', trend: '+8%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1938090/header.jpg' },
-  { pos: 3, name: 'Farm Valley', studio: 'CozyDev', players: 41200, genre: 'Simulação', trend: '+23%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/413150/header.jpg' },
-  { pos: 4, name: 'Speed Circuit', studio: 'TurboSoft', players: 25600, genre: 'Corrida', trend: '+5%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1551360/header.jpg' },
-  { pos: 5, name: 'Galaxy Builder', studio: 'StarForge', players: 18900, genre: 'Estratégia', trend: '+15%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/281990/header.jpg' },
-  { pos: 6, name: 'Counter Strike', studio: 'Nova Games', players: 12400, genre: 'Ação', trend: '-2%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/730/header.jpg' },
-  { pos: 7, name: 'Dungeon Depths', studio: 'PixelForge', players: 8300, genre: 'RPG', trend: '+4%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg' },
-  { pos: 8, name: 'Puzzle Mind', studio: 'BrainBox', players: 6100, genre: 'Puzzle', trend: '-1%', cover: 'https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/105600/header.jpg' },
-];
+const POLL_RANKING_MS = 5_000;
+
+function formatScore(n) {
+  if (n == null || Number.isNaN(n)) return '0';
+  if (n >= 1000) return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+}
 
 function Rankings() {
   const navigate = useNavigate();
-  const [period, setPeriod] = useState('year');
+  const [ranking, setRanking] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    let intervalId = null;
+
+    async function carregar(primeiraVez) {
+      if (primeiraVez) {
+        setLoading(true);
+        setErro(null);
+      }
+      try {
+        const res = await fetch('/stats/ranking/atividade?limite=60');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelado) setRanking(Array.isArray(data) ? data : []);
+        if (!cancelado && primeiraVez) setErro(null);
+      } catch {
+        if (!cancelado && primeiraVez) {
+          setErro('Não foi possível carregar o ranking. Confira backend e Redis.');
+          setRanking([]);
+        }
+      } finally {
+        if (!cancelado && primeiraVez) setLoading(false);
+      }
+    }
+
+    carregar(true);
+    intervalId = window.setInterval(() => { carregar(false); }, POLL_RANKING_MS);
+    return () => {
+      cancelado = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const medalColor = (pos) => {
     if (pos === 1) return '#ffd700';
@@ -24,10 +56,11 @@ function Rankings() {
     return '#666';
   };
 
+  const topThree = ranking.slice(0, 3);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
-      {/* NAVBAR */}
       <nav style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -58,104 +91,125 @@ function Rankings() {
         </div>
       </nav>
 
-      <header style={{ textAlign: 'center', padding: '40px 20px 10px' }}>
+      <header style={{ textAlign: 'center', padding: '40px 20px 12px' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Ranking de Jogos</h1>
-        <p style={{ color: '#999', fontSize: '0.95rem' }}>Os jogos mais populares publicados na plataforma GameHUB</p>
+        <p style={{ color: '#999', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto' }}>
+          Ordem pelo Redis (ZSET; também sobe com <code>/stats/&lt;id&gt;/enter</code>). Online e pico vêm dos hashes por jogo.
+          Lista atualiza automaticamente a cada {POLL_RANKING_MS / 1000}s.
+        </p>
       </header>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '16px 20px 24px' }}>
-        {[
-          { value: 'week', label: 'Semana' },
-          { value: 'month', label: 'Mês' },
-          { value: 'year', label: 'Ano' },
-          { value: 'all', label: 'Todos os tempos' },
-        ].map(p => (
-          <button
-            key={p.value}
-            onClick={() => setPeriod(p.value)}
-            style={{
-              padding: '6px 16px',
-              borderRadius: '20px',
-              border: period === p.value ? 'none' : '1px solid #444',
-              background: period === p.value ? '#f7f7f7' : '#2a2a2a',
-              color: period === p.value ? '#1f1f1f' : '#c9c9c9',
-              fontWeight: period === p.value ? '600' : '400',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              fontFamily: "'Poppins', sans-serif",
-              transition: 'all 0.2s',
-            }}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {loading && (
+        <p style={{ textAlign: 'center', color: '#999', padding: '24px' }}>Carregando ranking…</p>
+      )}
+      {erro && !loading && (
+        <p style={{ textAlign: 'center', color: '#e88', padding: '16px 20px' }}>{erro}</p>
+      )}
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%', padding: '0 20px' }}>
+      {!loading && !erro && ranking.length === 0 && (
+        <p style={{ textAlign: 'center', color: '#999', padding: '24px', maxWidth: '520px', margin: '0 auto' }}>
+          Nenhum jogo cadastrado. Publique pelo dashboard ou aguarde o primeiro jogador registrar entrada no jogo para subir no ZSET.
+        </p>
+      )}
+
+      {!loading && ranking.length > 0 && (
+      <div style={{ maxWidth: '1020px', margin: '0 auto', width: '100%', padding: '0 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
-          {RANKING_DATA.slice(0, 3).map(game => (
-            <div key={game.pos} style={{
-              flex: '0 1 260px',
-              background: '#2a2a2a',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              border: `2px solid ${medalColor(game.pos)}`,
-              textAlign: 'center',
-            }}>
-              <img src={game.cover} alt={game.name} style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
-              <div style={{ padding: '14px' }}>
-                <span style={{ fontSize: '1.5rem', fontWeight: '700', color: medalColor(game.pos) }}>
-                  {game.pos === 1 ? '🥇' : game.pos === 2 ? '🥈' : '🥉'}
-                </span>
-                <h3 style={{ fontSize: '1rem', margin: '6px 0 2px', borderBottom: 'none' }}>{game.name}</h3>
-                <p style={{ color: '#999', fontSize: '0.75rem', margin: '0 0 8px' }}>{game.studio}</p>
-                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f7f7f7' }}>
-                  Jogadores: {game.players.toLocaleString('pt-BR')}
-                </span>
+          {topThree.map((game) => {
+            const pos = game.posicao ?? 0;
+            return (
+              <div key={game.id} style={{
+                flex: '0 1 260px',
+                background: '#2a2a2a',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                border: `2px solid ${medalColor(pos)}`,
+                textAlign: 'center',
+              }}>
+                <img
+                  src={game.capaDisponivel ? `/mongo/arquivos/${game.id}/imagem` : '/gamehub.png'}
+                  alt=""
+                  style={{ width: '100%', height: '120px', objectFit: 'cover', background: '#1a1a1a' }}
+                  onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
+                />
+                <div style={{ padding: '14px' }}>
+                  <span style={{ fontSize: '1.5rem', fontWeight: '700', color: medalColor(pos) }}>
+                    {pos === 1 ? '🥇' : pos === 2 ? '🥈' : '🥉'}
+                  </span>
+                  <h3 style={{ fontSize: '1rem', margin: '6px 0 4px', borderBottom: 'none' }}>{game.nome || '—'}</h3>
+                  <p style={{ color: '#7fd67f', fontSize: '0.8rem', margin: '0 0 4px' }}>
+                    {game.jogadoresOnline != null ? game.jogadoresOnline : 0} online
+                  </p>
+                  <p style={{ color: '#999', fontSize: '0.72rem', margin: '0 0 6px' }}>
+                    Pico recorde: {(game.picoJogadoresOnline ?? 0).toLocaleString('pt-BR')}
+                  </p>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#9ec8ff' }}>
+                    Popularidade: {formatScore(game.scorePopularidade)}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div style={{ overflowX: 'auto' , marginBottom: '40px' }}>
+        <div style={{ overflowX: 'auto', marginBottom: '40px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #444', textAlign: 'left' }}>
-                <th style={{ padding: '10px 12px', color: '#999', fontWeight: '600' }}>#</th>
-                <th style={{ padding: '10px 12px', color: '#999', fontWeight: '600' }}>Jogo</th>
-                <th style={{ padding: '10px 12px', color: '#999', fontWeight: '600' }}>Estúdio</th>
-                <th style={{ padding: '10px 12px', color: '#999', fontWeight: '600' }}>Gênero</th>
-                <th style={{ padding: '10px 12px', color: '#999', fontWeight: '600', textAlign: 'right' }}>Jogadores</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600' }}>#</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600' }}>Jogo</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600', textAlign: 'right' }}>Online</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600', textAlign: 'right' }}>Pico</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600', textAlign: 'right' }}>Popularidade</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600' }}>Modo</th>
+                <th style={{ padding: '10px 8px', color: '#999', fontWeight: '600' }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {RANKING_DATA.map(game => (
-                <tr key={game.pos} style={{ borderBottom: '1px solid #333', transition: 'background 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <td style={{ padding: '12px', fontWeight: '700', color: medalColor(game.pos), fontSize: '1rem' }}>
-                    {game.pos <= 3 ? (game.pos === 1 ? '🥇' : game.pos === 2 ? '🥈' : '🥉') : game.pos}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img src={game.cover} alt={game.name} style={{ width: '48px', height: '28px', objectFit: 'cover', borderRadius: '4px' }} />
-                      <span style={{ fontWeight: '600', color: '#f7f7f7' }}>{game.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px', color: '#aaa' }}>{game.studio}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#333', borderRadius: '10px', color: '#ccc' }}>{game.genre}</span>
-                  </td>
-                  <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
-                    {game.players.toLocaleString('pt-BR')}
-                  </td> 
-                </tr>
-              ))}
+              {ranking.map((game) => {
+                const pos = game.posicao ?? 0;
+                return (
+                  <tr key={game.id} style={{ borderBottom: '1px solid #333', transition: 'background 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#2a2a2a'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <td style={{ padding: '10px 8px', fontWeight: '700', color: medalColor(pos), fontSize: '1rem' }}>
+                      {pos <= 3 ? (pos === 1 ? '🥇' : pos === 2 ? '🥈' : '🥉') : pos}
+                    </td>
+                    <td style={{ padding: '10px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <img
+                          src={game.capaDisponivel ? `/mongo/arquivos/${game.id}/imagem` : '/gamehub.png'}
+                          alt=""
+                          style={{ width: '48px', height: '28px', objectFit: 'cover', borderRadius: '4px', background: '#222' }}
+                          onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
+                        />
+                        <span style={{ fontWeight: '600', color: '#f7f7f7' }}>{game.nome || '—'}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', color: '#9f9', fontWeight: '600' }}>
+                      {(game.jogadoresOnline ?? 0).toLocaleString('pt-BR')}
+                    </td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', color: '#ccc' }}>
+                      {(game.picoJogadoresOnline ?? 0).toLocaleString('pt-BR')}
+                    </td>
+                    <td style={{ padding: '10px 8px', textAlign: 'right', color: '#9ec8ff', fontWeight: '600' }}>
+                      {formatScore(game.scorePopularidade)}
+                    </td>
+                    <td style={{ padding: '10px 8px', color: '#aaa' }}>{game.modoJogo || '—'}</td>
+                    <td style={{ padding: '10px 8px' }}>
+                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#333', borderRadius: '10px', color: '#ccc' }}>
+                        {game.status || '—'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+      )}
 
       <footer style={{
         textAlign: 'center',
