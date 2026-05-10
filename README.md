@@ -20,8 +20,9 @@ Crie um ficheiro `.env` na raiz do projeto (ou exporte no sistema). **Não coloq
 | `REDIS_PASSWORD` | Palavra-passe, se aplicável. |
 | `SUPABASE_URL` | URL base do projeto (ex.: `https://xxxx.supabase.co`). |
 | `SUPABASE_KEY` | Chave `service_role` ou `anon` conforme a política do teu projeto. |
+| `VITE_PROXY_TARGET` | **Só para o frontend (Vite):** URL base do Spring Boot que recebe o proxy de `/api` e `/uploads`. Omissão: `http://127.0.0.1:8080`. Exemplo PowerShell antes de `npm run dev`: `$env:VITE_PROXY_TARGET='http://127.0.0.1:9090'`. |
 
-O `springboot4-dotenv` (dependência de desenvolvimento) pode carregar `.env` ao correr o backend; confirma na documentação da dependência se o ficheiro está no path esperado.
+O `springboot4-dotenv` (dependência de desenvolvimento) pode carregar `.env` ao correr o backend; confirma na documentação da dependência se o ficheiro está no path esperado. Para o Vite, variáveis `VITE_*` podem ir num `.env` dentro de `frontend/` (ver [documentação Vite](https://vite.dev/guide/env-and-mode.html)).
 
 ## Como rodar o backend
 
@@ -47,7 +48,7 @@ npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173`. O Vite faz **proxy** de `/api` e `/uploads` para o backend (`VITE_PROXY_TARGET` pode apontar para outro host:porta).
+Abre `http://localhost:5173`. O Vite faz **proxy** de `/api` e `/uploads` para o valor de **`VITE_PROXY_TARGET`** (por omissão `http://127.0.0.1:8080`). Se o backend estiver outra porta ou máquina, define essa variável antes de `npm run dev`.
 
 ## API principal (prefixo `/api`)
 

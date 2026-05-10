@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { safeResponseJson } from '../lib/safeResponseJson';
 import '../App.css';
 
 function Login() {
@@ -18,7 +19,10 @@ function Login() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const { data, parseFailed } = await safeResponseJson(res);
+      if (parseFailed) {
+        return alert(`Resposta invalida do servidor (HTTP ${res.status}). O backend esta a correr em ${import.meta.env.DEV ? 'o destino do proxy Vite' : 'este host'}?`);
+      }
 
       if (!res.ok) {
         return alert(data.error || 'Erro ao fazer login');
