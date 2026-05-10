@@ -10,15 +10,15 @@ Monorepo com backend **Spring Boot** (Java 25) e frontend **React + Vite**. O ba
 
 ## Variáveis de ambiente
 
-Crie um ficheiro `.env` na raiz do projeto (ou exporte no sistema). **Não coloque segredos reais no Git.**
+Crie um ficheiro `.env` na raiz do projeto (ou exporte no sistema).
 
 | Variável | Descrição |
 |----------|-----------|
-| `MONGO_URI_AKIRA` | URI de ligação ao MongoDB (ex.: `mongodb+srv://USER:PASS@cluster/DB?...`). |
+| `MONGO_URI_AKIRA` | URI de ligação ao MongoDB. |
 | `REDIS_HOST` | Host do Redis. |
 | `REDIS_PORT` | Porta (número). |
 | `REDIS_PASSWORD` | Palavra-passe, se aplicável. |
-| `SUPABASE_URL` | URL base do projeto (ex.: `https://xxxx.supabase.co`). |
+| `SUPABASE_URL` | URL base do projeto. |
 | `SUPABASE_KEY` | Chave `service_role` ou `anon` conforme a política do teu projeto. |
 | `VITE_PROXY_TARGET` | **Só para o frontend (Vite):** URL base do Spring Boot que recebe o proxy de `/api` e `/uploads`. Omissão: `http://127.0.0.1:8080`. Exemplo PowerShell antes de `npm run dev`: `$env:VITE_PROXY_TARGET='http://127.0.0.1:9090'`. |
 
