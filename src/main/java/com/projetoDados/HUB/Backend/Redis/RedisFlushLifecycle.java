@@ -15,7 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Limpa o Redis no boot (antes do {@link CatalogoRedisWarmupRunner}) e opcionalmente no shutdown.
+ * Executa {@code FLUSHALL} no Redis para começar com base vazia antes de repovoar o catálogo.
+ * <p>
+ * <b>O que entrega:</b> base Redis limpa no startup (se {@code app.redis.flush-on-startup=true}) e,
+ * opcionalmente, no encerramento do processo. Falha de conexão não derruba o Spring — só log.
  */
 @Slf4j
 @Component

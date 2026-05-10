@@ -1,34 +1,73 @@
 # projeto-banco-de-dados
 
+Monorepo com backend **Spring Boot** (Java 25) e frontend **React + Vite**. O backend expõe uma API sob o prefixo **`/api`** e integra **MongoDB** (dados dos jogos), **Redis** (métricas e cache em memória) e **Supabase** (autenticação e registo de empresas).
 
-Como rodar:
+## Pré-requisitos
 
-Baixar o java jdk 25.
+- **JDK 25** (toolchain definida no Gradle).
+- **Node.js** em versão **LTS** atual (ex.: 20.x ou 22.x) para o frontend.
+- Contas em serviços **cloud**: cluster MongoDB (ex.: Atlas), instância Redis (ex.: Redis Cloud), projeto Supabase com Auth ativo e tabela `empresas` conforme o backend espera.
 
-no vscode, baixar a extensão do gradle.
-abrir ele, localizado na barra esquerda.
-e ir no "Task" - "application" - "bootRun"
- 
-Isso faz o servidor rodar.
+## Variáveis de ambiente
 
-Baixar o nodeJS v11.9.0
+Crie um ficheiro `.env` na raiz do projeto (ou exporte no sistema). **Não coloque segredos reais no Git.**
 
-no vscode abra após baixar, abra o diretorio "./frontend"
-abra o terminal e execute "npm install"
-logo após a instalaçao, para rodar execute no terminal novamente "npm run dev"
-e acesse o site em local de desenvolvimento no url "http://localhost:5173/"
+| Variável | Descrição |
+|----------|-----------|
+| `MONGO_URI_AKIRA` | URI de ligação ao MongoDB (ex.: `mongodb+srv://USER:PASS@cluster/DB?...`). |
+| `REDIS_HOST` | Host do Redis. |
+| `REDIS_PORT` | Porta (número). |
+| `REDIS_PASSWORD` | Palavra-passe, se aplicável. |
+| `SUPABASE_URL` | URL base do projeto (ex.: `https://xxxx.supabase.co`). |
+| `SUPABASE_KEY` | Chave `service_role` ou `anon` conforme a política do teu projeto. |
 
-Isso faz o nosso Front-End executar.
-Assim já temos tanto nosso FE + BE rodando e o projeto funcional.
+O `springboot4-dotenv` (dependência de desenvolvimento) pode carregar `.env` ao correr o backend; confirma na documentação da dependência se o ficheiro está no path esperado.
 
+## Como rodar o backend
 
-Motivos das Escolhas:
+Na raiz do repositório (onde está `build.gradle`):
 
-O Redis foi escolhido para gerenciar as operações assíncronas de publicação de jogos. Como o Redis é um banco de dados em memória extremamente rápido e suporta estruturas de dados como listas e hashes, ele é ideal para implementar filas de processamento e armazenar estados temporários de operações. Nesse projeto, o Redis é utilizado para controlar a fila de uploads e o status de publicação dos jogos nas plataformas externas.
+```bash
+./gradlew bootRun
+```
 
-Redis não é usado para CRUD tradicional de dados permanentes. Ele é usado para cache, filas e estados temporários, então usar ele para fila de upload + status é arquitetura correta.
+No Windows (PowerShell):
 
-Supabase (PostgreSQL) foi escolhido para gerenciar a autenticação de usuários e o armazenamento permanente dos dados das empresas. Como o Supabase oferece um banco PostgreSQL completo com API REST automática e um sistema de autenticação integrado (JWT), ele é ideal para operações que exigem persistência, integridade relacional e segurança. Nesse projeto, o Supabase é utilizado para cadastrar e autenticar empresas (login/registro), armazenar os dados cadastrais (nome, CNPJ, email) e fornecer o user_id único que vincula cada empresa aos seus jogos e uploads nos outros bancos.
+```powershell
+.\gradlew.bat bootRun
+```
 
-Supabase não é usado para cache ou filas temporárias. Ele é usado para dados permanentes e autenticação, então usar ele para registro de empresas + controle de identidade é arquitetura correta.
+Por omissão o servidor escuta na porta **8080**. Perfil opcional **`dev`** ativa o endpoint de teste Redis em `/redis-test` (`RedisTestController`).
 
+## Como rodar o frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abre `http://localhost:5173`. O Vite faz **proxy** de `/api` e `/uploads` para o backend (`VITE_PROXY_TARGET` pode apontar para outro host:porta).
+
+## API principal (prefixo `/api`)
+
+- **`/api/jogos/**`** — CRUD e publicação multipart dos jogos (Mongo + ficheiros em disco + sync Redis `catalog:*`).
+- **`/api/stats/**`** — Ranking por ZSET, catálogo com métricas, enter/leave, stats por jogo; **`GET /api/stats/catalogo/ranking-cache`** substitui o antigo `GET /catalog/ranking`.
+- **`/api/auth/**`** — `POST /register`, `POST /login`, `GET /me` (Bearer token). Respostas de sucesso são JSON tipado (`accessToken`, `refreshToken`, etc.).
+
+## Por que cada banco / serviço
+
+**MongoDB** — Guarda o documento principal de cada jogo (`ArquivoDocumento`: nome, preço, plataformas, estado, bytes da capa, etc.) e é a fonte de verdade para o catálogo. Os ficheiros `.zip` grandes ficam no disco do servidor; o Mongo guarda o caminho.
+
+**Redis** — Memória de baixa latência para:
+- hashes `game:{id}:stats` (online, pico, mínimo) e sets de utilizadores em sessão;
+- ZSET `ranking:games` para ordenar por popularidade quando há eventos `enter`;
+- cache `catalog:*` (lista ordenada + hashes) espelhado a partir do Mongo no arranque e após alterações.
+
+Não substitui o Mongo para dados permanentes do jogo; complementa com estado “quente” e vistas rápidas.
+
+**Supabase** — Autenticação (signup/login com JWT) e inserção de linhas na tabela `empresas` via REST, alinhado ao registo de empresas no frontend.
+
+## Desenvolvimento na IDE
+
+Podes usar a extensão **Gradle** no VS Code / Cursor e executar a tarefa **bootRun** em **Tasks → application**, em alternativa à linha de comandos.

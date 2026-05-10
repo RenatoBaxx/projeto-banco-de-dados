@@ -26,7 +26,7 @@ function Rankings() {
         setErro(null);
       }
       try {
-        const res = await fetch('/stats/ranking/atividade?limite=60');
+        const res = await fetch('/api/stats/ranking/atividade?limite=60');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelado) setRanking(Array.isArray(data) ? data : []);
@@ -94,7 +94,7 @@ function Rankings() {
       <header style={{ textAlign: 'center', padding: '40px 20px 12px' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Ranking de Jogos</h1>
         <p style={{ color: '#999', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto' }}>
-          Ordem pelo Redis (ZSET; também sobe com <code>/stats/&lt;id&gt;/enter</code>). Online e pico vêm dos hashes por jogo.
+          Ordem pelo Redis (ZSET; também sobe com <code>/api/stats/&lt;id&gt;/enter</code>). Online e pico vêm dos hashes por jogo.
           Lista atualiza automaticamente a cada {POLL_RANKING_MS / 1000}s.
         </p>
       </header>
@@ -127,7 +127,7 @@ function Rankings() {
                 textAlign: 'center',
               }}>
                 <img
-                  src={game.capaDisponivel ? `/mongo/arquivos/${game.id}/imagem` : '/gamehub.png'}
+                  src={game.capaDisponivel ? `/api/jogos/${game.id}/imagem` : '/gamehub.png'}
                   alt=""
                   style={{ width: '100%', height: '120px', objectFit: 'cover', background: '#1a1a1a' }}
                   onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
@@ -179,7 +179,7 @@ function Rankings() {
                     <td style={{ padding: '10px 8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <img
-                          src={game.capaDisponivel ? `/mongo/arquivos/${game.id}/imagem` : '/gamehub.png'}
+                          src={game.capaDisponivel ? `/api/jogos/${game.id}/imagem` : '/gamehub.png'}
                           alt=""
                           style={{ width: '48px', height: '28px', objectFit: 'cover', borderRadius: '4px', background: '#222' }}
                           onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}

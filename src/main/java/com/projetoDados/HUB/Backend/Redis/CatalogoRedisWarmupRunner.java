@@ -11,7 +11,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Ao subir o servidor: Mongo → Redis com ordem de ranking aleatória.
+ * Depois do flush (se houver): copia todos os jogos do Mongo para as chaves {@code catalog:*} no Redis,
+ * com ordem da lista embaralhada uma vez por subida.
+ * <p>
+ * <b>O que entrega:</b> cache de catálogo pronto para {@code CatalogoJogoRankingService.listarRanking()}
+ * e hashes atualizados quando o {@code ApplicationRunner} termina sem erro.
  */
 @Slf4j
 @Component

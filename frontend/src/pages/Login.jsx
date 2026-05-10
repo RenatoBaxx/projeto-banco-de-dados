@@ -12,7 +12,7 @@ function Login() {
     if (!email || !password) return alert('Preencha os campos!');
 
     try {
-      const res = await fetch('/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -24,7 +24,12 @@ function Login() {
         return alert(data.error || 'Erro ao fazer login');
       }
 
-      localStorage.setItem('token', JSON.stringify(data.data));
+      localStorage.setItem('token', JSON.stringify({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+        expires_in: data.expiresIn,
+        token_type: data.tokenType,
+      }));
       navigate('/dashboard');
     } catch (err) {
       alert('Erro de conexão com o servidor.');

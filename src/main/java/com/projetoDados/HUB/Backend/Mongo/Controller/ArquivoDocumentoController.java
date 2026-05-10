@@ -23,18 +23,28 @@ import com.projetoDados.HUB.Backend.Mongo.Service.ArquivoDocumentoService;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * API REST dos jogos (documentos MongoDB + ficheiros em disco).
+ * <p>
+ * Expõe CRUD, publicação com multipart (capa + zip) e bytes da imagem de capa.
+ * Cada alteração relevante sincroniza o cache Redis do catálogo ({@code catalog:*}) via serviço.
+ */
 @RestController
-@RequestMapping("/mongo/arquivos")
+@RequestMapping("/api/jogos")
 @RequiredArgsConstructor
 public class ArquivoDocumentoController {
 
     private final ArquivoDocumentoService service;
 
+    /** Cria jogo só com JSON (sem upload de ficheiros). Entrega: documento salvo (201 implícito em 200). */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ArquivoDocumento> criarJson(@RequestBody ArquivoDocumento body) {
         return ResponseEntity.ok(service.criar(body));
     }
 
+    /**
+     * Publica jogo com capa e .zip. Entrega: {@code id} + mensagem, ou 400 com {@code error}.
+     */
     @PostMapping(value = "/publicar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> publicarComArquivo(
             @RequestParam("nome") String nome,
@@ -54,16 +64,19 @@ public class ArquivoDocumentoController {
         }
     }
 
+    /** Lista resumo para o painel (id, loja, status). */
     @GetMapping("/dashboard")
     public ResponseEntity<List<ArquivoDocumentoDashboardItemDTO>> listarDashboard() {
         return ResponseEntity.ok(service.listarParaDashboard());
     }
 
+    /** Lista todos os documentos completos (atenção: inclui metadados; imagem em bytes pode ser omitida no JSON conforme serialização). */
     @GetMapping
     public ResponseEntity<List<ArquivoDocumento>> listar() {
         return ResponseEntity.ok(service.listar());
     }
 
+    /** Entrega bytes da capa e Content-Type, ou 404. */
     @GetMapping("/{id}/imagem")
     public ResponseEntity<byte[]> getImagemCapa(@PathVariable String id) {
         return service.buscarImagem(id)
@@ -73,6 +86,7 @@ public class ArquivoDocumentoController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Busca um documento por id, ou 404. */
     @GetMapping("/{id}")
     public ResponseEntity<ArquivoDocumento> buscarPorId(@PathVariable String id) {
         return service.buscarPorId(id)
@@ -80,6 +94,7 @@ public class ArquivoDocumentoController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Atualização completa por JSON. Entrega documento atualizado ou 404. */
     @PutMapping("/{id}")
     public ResponseEntity<ArquivoDocumento> atualizar(
             @PathVariable String id,
@@ -89,6 +104,7 @@ public class ArquivoDocumentoController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Atualiza só o campo status. 200 vazio ou 404. */
     @PutMapping("/{id}/status")
     public ResponseEntity<Void> atualizarStatus(
             @PathVariable String id,
@@ -97,6 +113,7 @@ public class ArquivoDocumentoController {
         return ok.isPresent() ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
+    /** Remove Mongo + zip em disco + entrada no Redis catálogo. 200 ou 404. */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable String id) {
         if (!service.deletar(id)) {

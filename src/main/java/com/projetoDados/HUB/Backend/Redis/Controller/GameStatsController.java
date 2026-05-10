@@ -12,41 +12,48 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.projetoDados.HUB.Backend.Redis.DTO.JogoRedisPublicoResponse;
+import com.projetoDados.HUB.Backend.Redis.DTO.RankingJogoItemResponse;
 import com.projetoDados.HUB.Backend.Redis.Model.GameStats;
+import com.projetoDados.HUB.Backend.Redis.Service.CatalogoJogoRankingService;
 import com.projetoDados.HUB.Backend.Redis.Service.GameStatsService;
-import com.projetoDados.HUB.Backend.Redis.Service.RankingPopularidadeService;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * API de métricas em tempo real (Redis) e leituras agregadas com Mongo.
+ * Prefixo {@code /api/stats}; rotas literais vêm antes de {@code /{gameId}} para não colidirem.
+ */
 @RestController
-@RequestMapping("/stats")
+@RequestMapping("/api/stats")
 @RequiredArgsConstructor
 public class GameStatsController {
 
     private final GameStatsService gameStatsService;
-    private final RankingPopularidadeService rankingPopularidadeService;
-
-    // ---------- ROTAS ESTÁTICAS (antes de /{gameId}) ----------
+    private final CatalogoJogoRankingService catalogoJogoRankingService;
 
     @GetMapping("/ranking")
     public ResponseEntity<Set<Object>> getRanking() {
         return ResponseEntity.ok(gameStatsService.getTopGames());
     }
 
-    /** Ranking: ZSET popularidade + online/pico nos hashes + metadados Mongo. */
     @GetMapping("/ranking/atividade")
     public ResponseEntity<List<JogoRedisPublicoResponse>> rankingPorAtividade(
             @RequestParam(required = false) Integer limite) {
-        return ResponseEntity.ok(rankingPopularidadeService.rankingPorAtividade(limite));
+        return ResponseEntity.ok(gameStatsService.rankingPorAtividade(limite));
     }
 
-    /** Catálogo Mongo com métricas Redis por linha (exploração rápida). */
     @GetMapping("/catalogo/metricas")
     public ResponseEntity<List<JogoRedisPublicoResponse>> catalogoComMetricas() {
-        return ResponseEntity.ok(rankingPopularidadeService.catalogoComMetricas());
+        return ResponseEntity.ok(gameStatsService.catalogoComMetricas());
     }
 
-    // ---------- POR GAME ID ----------
+    /**
+     * Ranking só no cache Redis {@code catalog:*} (ordem embaralhada no warmup). Antigo {@code GET /catalog/ranking}.
+     */
+    @GetMapping("/catalogo/ranking-cache")
+    public ResponseEntity<List<RankingJogoItemResponse>> rankingCatalogoCache() {
+        return ResponseEntity.ok(catalogoJogoRankingService.listarRanking());
+    }
 
     @PostMapping("/{gameId}/enter")
     public ResponseEntity<Void> enterGame(
