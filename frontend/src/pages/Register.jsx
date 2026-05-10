@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { safeResponseJson } from '../lib/safeResponseJson';
 import '../App.css';
 
 function Register() {
@@ -18,13 +19,16 @@ function Register() {
     }
 
     try {
-      const res = await fetch('/auth/register', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, password: formData.password, nomeEmpresa: formData.nomeEmpresa, cnpj: formData.cnpj }),
       });
 
-      const data = await res.json();
+      const { data, parseFailed } = await safeResponseJson(res);
+      if (parseFailed) {
+        return alert(`Resposta invalida do servidor (HTTP ${res.status}). Confirme o proxy e o backend.`);
+      }
 
       if (!res.ok) {
         return alert(data.error || 'Erro ao cadastrar');

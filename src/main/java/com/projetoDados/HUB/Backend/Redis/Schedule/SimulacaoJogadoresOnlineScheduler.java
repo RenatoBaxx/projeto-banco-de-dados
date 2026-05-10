@@ -16,7 +16,11 @@ import com.projetoDados.HUB.Backend.Redis.Service.GameStatsService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Simula jogadores online no Redis: valor inicial aleatório por jogo no boot e oscilação periódica.
+ * Simula tráfego: após o contexto pronto, define {@code online}/{@code max}/{@code min} aleatórios por jogo
+ * e, em intervalo fixo, altera o campo {@code online} nos hashes {@code game:{id}:stats}.
+ * <p>
+ * <b>O que entrega:</b> números que mudam no Redis para o front consumir via {@code /api/stats/...} sem precisar
+ * de clientes reais. Não altera a ZSET de popularidade (isso continua ligado a {@code enter}).
  */
 @Slf4j
 @Component

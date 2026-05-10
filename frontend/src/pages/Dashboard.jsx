@@ -81,7 +81,7 @@ function Dashboard() {
       fd.append('imagem', pubData.coverImage);
       fd.append('arquivo', pubData.file);
 
-      const res = await fetch('/mongo/arquivos/publicar', { method: 'POST', body: fd });
+      const res = await fetch('/api/jogos/publicar', { method: 'POST', body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(data.error || 'Erro ao publicar o jogo.');
@@ -113,7 +113,7 @@ function Dashboard() {
   const fetchAllUploads = async () => {
     setUploadsLoading(true);
     try {
-      const res = await fetch('/mongo/arquivos/dashboard');
+      const res = await fetch('/api/jogos/dashboard');
       if (res.ok) {
         const data = await res.json();
         setAllUploads(data);
@@ -167,7 +167,7 @@ function Dashboard() {
 
     try {
       const res = await fetch(
-        `/mongo/arquivos/${encodeURIComponent(updateData.id)}/status?status=${encodeURIComponent(updateData.status)}`,
+        `/api/jogos/${encodeURIComponent(updateData.id)}/status?status=${encodeURIComponent(updateData.status)}`,
         { method: 'PUT' }
       );
       if (res.ok) {
@@ -188,7 +188,7 @@ function Dashboard() {
     if (!confirm(`Tem certeza que deseja deletar o upload ${deleteId}?`)) return;
 
     try {
-      const res = await fetch('/mongo/arquivos/' + encodeURIComponent(deleteId), {
+      const res = await fetch('/api/jogos/' + encodeURIComponent(deleteId), {
         method: 'DELETE'
       });
       if (res.ok) {

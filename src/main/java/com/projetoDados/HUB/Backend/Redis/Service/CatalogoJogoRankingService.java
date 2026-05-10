@@ -19,7 +19,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Cache Redis do catálogo Mongo: ordem de ranking aleatória gerada na subida do servidor.
+ * Espelho do catálogo Mongo no Redis: ordem de exibição gerada no warmup e hashes por jogo.
+ * <p>
+ * Chaves Redis:
+ * <ul>
+ * <li>{@code catalog:ranking:order} — lista com ordem dos ids (ranking de catálogo)</li>
+ * <li>{@code catalog:ranking:ids} — set dos ids conhecidos no cache</li>
+ * <li>{@code catalog:game:{id}} — hash com nome, preço, plataformas, etc.</li>
+ * </ul>
+ * Métricas ao vivo (online, ZSET de popularidade) ficam em {@link GameStatsService} ({@code game:{id}:stats},
+ * {@link GameStatsService#RANKING_GAMES_ZSET}).
  */
 @Slf4j
 @Service

@@ -22,6 +22,13 @@ import com.projetoDados.HUB.Backend.Redis.Service.CatalogoJogoRankingService;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Regras de negócio dos jogos no MongoDB e ficheiros .zip no disco.
+ * <p>
+ * <b>O que entrega:</b> persistência em {@link ArquivoDocumentoRepository}, gravação de zip em
+ * {@code app.uploads.jogos-dir}, validação de capa, e após cada create/update/delete chama o Redis
+ * ({@link CatalogoJogoRankingService}) para manter o espelho {@code catalog:*}.
+ */
 @Service
 @RequiredArgsConstructor
 public class ArquivoDocumentoService {
@@ -42,6 +49,9 @@ public class ArquivoDocumentoService {
     @Value("${app.uploads.jogos-dir:uploads/games}")
     private String jogosDirRelativo;
 
+    // ---------- Criação ----------
+
+    /** Insere documento JSON; status default PENDENTE; sincroniza Redis. */
     public ArquivoDocumento criar(ArquivoDocumento novo) {
         novo.setId(null);
         if (novo.getStatus() == null || novo.getStatus().isBlank()) {
@@ -52,6 +62,10 @@ public class ArquivoDocumentoService {
         return salvo;
     }
 
+    /**
+     * Cria jogo com multipart: valida capa (tipo/tamanho), listas JSON em {@code os} e {@code platforms},
+     * grava Mongo, depois grava {@code id}.zip no disco e atualiza caminho; sincroniza Redis.
+     */
     public ArquivoDocumento criarComUpload(
             String nome,
             String descricao,
@@ -104,6 +118,8 @@ public class ArquivoDocumentoService {
         return finalDoc;
     }
 
+    // ---------- Leitura ----------
+
     public List<ArquivoDocumento> listar() {
         return repository.findAll();
     }
@@ -125,6 +141,8 @@ public class ArquivoDocumentoService {
                                 ? d.getImagemContentType()
                                 : "application/octet-stream"));
     }
+
+    // ---------- Atualização e remoção ----------
 
     public Optional<ArquivoDocumento> atualizar(String id, ArquivoDocumento atualizacao) {
         return repository.findById(id).map(existente -> {
@@ -154,6 +172,8 @@ public class ArquivoDocumentoService {
         catalogoJogoRankingService.removerDocumentoDoRedis(id);
         return true;
     }
+
+    // ---------- Internos ----------
 
     private ArquivoDocumento salvarAtualizacao(ArquivoDocumento existente, ArquivoDocumento atualizacao) {
         existente.setNome(atualizacao.getNome());

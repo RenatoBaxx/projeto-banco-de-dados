@@ -7,7 +7,7 @@ const POLL_METRICAS_MS = 5_000;
 
 function coverSrc(game) {
   if (!game.capaDisponivel || !game.id) return '/gamehub.png';
-  return `/mongo/arquivos/${game.id}/imagem`;
+  return `/api/jogos/${game.id}/imagem`;
 }
 
 function Jogos() {
@@ -29,7 +29,7 @@ function Jogos() {
         setErro(null);
       }
       try {
-        const res = await fetch('/stats/catalogo/metricas');
+        const res = await fetch('/api/stats/catalogo/metricas');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelado) setGames(Array.isArray(data) ? data : []);

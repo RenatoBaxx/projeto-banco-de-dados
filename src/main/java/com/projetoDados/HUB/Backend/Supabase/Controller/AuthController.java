@@ -1,61 +1,58 @@
 package com.projetoDados.HUB.Backend.Supabase.Controller;
 
-import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import com.projetoDados.HUB.Backend.Supabase.DTO.AuthContracts.LoginRequest;
+import com.projetoDados.HUB.Backend.Supabase.DTO.AuthContracts.RegisterRequest;
 import com.projetoDados.HUB.Backend.Supabase.Service.AuthService;
 
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Autenticação via Supabase: registro, login e {@code /user} com Bearer token.
+ */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
-    // POST /auth/register - cria conta nova
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String password = body.get("password");
-        String nomeEmpresa = body.get("nomeEmpresa");
-        String cnpj = body.get("cnpj");
-
-        Map<String, Object> result = authService.register(email, password, nomeEmpresa, cnpj);
-
-        if (result.containsKey("error")) {
-            return ResponseEntity.badRequest().body(result);
+    public ResponseEntity<?> register(@RequestBody RegisterRequest body) {
+        var r = authService.register(
+                body.email(),
+                body.password(),
+                body.nomeEmpresa(),
+                body.cnpj());
+        if (!r.isOk()) {
+            return ResponseEntity.badRequest().body(r.error());
         }
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(r.value());
     }
 
-    // POST /auth/login - faz login
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String password = body.get("password");
-
-        Map<String, Object> result = authService.login(email, password);
-
-        if (result.containsKey("error")) {
-            return ResponseEntity.status(401).body(result);
+    public ResponseEntity<?> login(@RequestBody LoginRequest body) {
+        var r = authService.login(body.email(), body.password());
+        if (!r.isOk()) {
+            return ResponseEntity.status(401).body(r.error());
         }
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(r.value());
     }
 
-    // GET /auth/me - retorna o id e email do usuario logado
     @GetMapping("/me")
-    public ResponseEntity<Map<String, Object>> me(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        Map<String, Object> result = authService.getUser(token);
-
-        if (result.containsKey("error")) {
-            return ResponseEntity.status(401).body(result);
+    public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "").trim();
+        var r = authService.getUser(token);
+        if (!r.isOk()) {
+            return ResponseEntity.status(401).body(r.error());
         }
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(r.value());
     }
 }

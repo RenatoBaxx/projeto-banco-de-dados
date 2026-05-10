@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { safeResponseJson } from '../lib/safeResponseJson';
 import '../App.css';
 
 function Login() {
@@ -12,19 +13,27 @@ function Login() {
     if (!email || !password) return alert('Preencha os campos!');
 
     try {
-      const res = await fetch('/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const { data, parseFailed } = await safeResponseJson(res);
+      if (parseFailed) {
+        return alert(`Resposta invalida do servidor (HTTP ${res.status}). O backend esta a correr em ${import.meta.env.DEV ? 'o destino do proxy Vite' : 'este host'}?`);
+      }
 
       if (!res.ok) {
         return alert(data.error || 'Erro ao fazer login');
       }
 
-      localStorage.setItem('token', JSON.stringify(data.data));
+      localStorage.setItem('token', JSON.stringify({
+        access_token: data.accessToken,
+        refresh_token: data.refreshToken,
+        expires_in: data.expiresIn,
+        token_type: data.tokenType,
+      }));
       navigate('/dashboard');
     } catch (err) {
       alert('Erro de conexão com o servidor.');
