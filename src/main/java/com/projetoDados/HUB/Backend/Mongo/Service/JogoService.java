@@ -14,10 +14,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.projetoDados.HUB.Backend.Mongo.DTO.ArquivoDocumentoDashboardItemDTO;
 import com.projetoDados.HUB.Backend.Mongo.DTO.ImagemPayload;
-import com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento;
-import com.projetoDados.HUB.Backend.Mongo.Repository.ArquivoDocumentoRepository;
+import com.projetoDados.HUB.Backend.Mongo.DTO.JogoDashboardItemDTO;
+import com.projetoDados.HUB.Backend.Mongo.Model.Jogo;
+import com.projetoDados.HUB.Backend.Mongo.Repository.JogoRepository;
 import com.projetoDados.HUB.Backend.Redis.Service.CatalogoJogoRankingService;
 
 import lombok.RequiredArgsConstructor;
@@ -25,13 +25,13 @@ import lombok.RequiredArgsConstructor;
 /**
  * Regras de negócio dos jogos no MongoDB e ficheiros .zip no disco.
  * <p>
- * <b>O que entrega:</b> persistência em {@link ArquivoDocumentoRepository}, gravação de zip em
+ * <b>O que entrega:</b> persistência em {@link JogoRepository}, gravação de zip em
  * {@code app.uploads.jogos-dir}, validação de capa, e após cada create/update/delete chama o Redis
  * ({@link CatalogoJogoRankingService}) para manter o espelho {@code catalog:*}.
  */
 @Service
 @RequiredArgsConstructor
-public class ArquivoDocumentoService {
+public class JogoService {
 
     private static final String STATUS_PENDENTE = "PENDENTE";
 
@@ -43,7 +43,7 @@ public class ArquivoDocumentoService {
             "image/webp",
             "image/gif");
 
-    private final ArquivoDocumentoRepository repository;
+    private final JogoRepository repository;
     private final CatalogoJogoRankingService catalogoJogoRankingService;
 
     @Value("${app.uploads.jogos-dir:uploads/games}")
@@ -52,12 +52,12 @@ public class ArquivoDocumentoService {
     // ---------- Criação ----------
 
     /** Insere documento JSON; status default PENDENTE; sincroniza Redis. */
-    public ArquivoDocumento criar(ArquivoDocumento novo) {
+    public Jogo criar(Jogo novo) {
         novo.setId(null);
         if (novo.getStatus() == null || novo.getStatus().isBlank()) {
             novo.setStatus(STATUS_PENDENTE);
         }
-        ArquivoDocumento salvo = repository.save(novo);
+        Jogo salvo = repository.save(novo);
         catalogoJogoRankingService.sincronizarDocumentoNoRedis(salvo);
         return salvo;
     }
@@ -66,7 +66,7 @@ public class ArquivoDocumentoService {
      * Cria jogo com multipart: valida capa (tipo/tamanho), listas JSON em {@code os} e {@code platforms},
      * grava Mongo, depois grava {@code id}.zip no disco e atualiza caminho; sincroniza Redis.
      */
-    public ArquivoDocumento criarComUpload(
+    public Jogo criarComUpload(
             String nome,
             String descricao,
             String preco,
@@ -96,7 +96,7 @@ public class ArquivoDocumentoService {
                     "platforms vazio; esperado lista JSON nao vazia, recebido=" + platformsJson);
         }
 
-        ArquivoDocumento novo = new ArquivoDocumento();
+        Jogo novo = new Jogo();
         novo.setNome(nome);
         novo.setDescricao(descricao);
         novo.setPreco(preco);
@@ -110,25 +110,25 @@ public class ArquivoDocumentoService {
         novo.setImagemContentType(capa.contentType());
         novo.setImagemDados(capa.dados());
 
-        ArquivoDocumento salvo = repository.save(novo);
+        Jogo salvo = repository.save(novo);
         Path destino = salvarArquivoEmDisco(salvo.getId(), arquivo);
         salvo.setArquivoCaminhoRelativo(destino.toString().replace("\\", "/"));
-        ArquivoDocumento finalDoc = repository.save(salvo);
+        Jogo finalDoc = repository.save(salvo);
         catalogoJogoRankingService.sincronizarDocumentoNoRedis(finalDoc);
         return finalDoc;
     }
 
     // ---------- Leitura ----------
 
-    public List<ArquivoDocumento> listar() {
+    public List<Jogo> listar() {
         return repository.findAll();
     }
 
-    public List<ArquivoDocumentoDashboardItemDTO> listarParaDashboard() {
+    public List<JogoDashboardItemDTO> listarParaDashboard() {
         return repository.findAll().stream().map(this::paraDashboardItem).collect(Collectors.toList());
     }
 
-    public Optional<ArquivoDocumento> buscarPorId(String id) {
+    public Optional<Jogo> buscarPorId(String id) {
         return repository.findById(id);
     }
 
@@ -144,29 +144,29 @@ public class ArquivoDocumentoService {
 
     // ---------- Atualização e remoção ----------
 
-    public Optional<ArquivoDocumento> atualizar(String id, ArquivoDocumento atualizacao) {
+    public Optional<Jogo> atualizar(String id, Jogo atualizacao) {
         return repository.findById(id).map(existente -> {
-            ArquivoDocumento salvo = salvarAtualizacao(existente, atualizacao);
+            Jogo salvo = salvarAtualizacao(existente, atualizacao);
             catalogoJogoRankingService.sincronizarDocumentoNoRedis(salvo);
             return salvo;
         });
     }
 
-    public Optional<ArquivoDocumento> atualizarStatus(String id, String status) {
+    public Optional<Jogo> atualizarStatus(String id, String status) {
         return repository.findById(id).map(doc -> {
             doc.setStatus(status);
-            ArquivoDocumento salvo = repository.save(doc);
+            Jogo salvo = repository.save(doc);
             catalogoJogoRankingService.sincronizarDocumentoNoRedis(salvo);
             return salvo;
         });
     }
 
     public boolean deletar(String id) {
-        Optional<ArquivoDocumento> opt = repository.findById(id);
+        Optional<Jogo> opt = repository.findById(id);
         if (opt.isEmpty()) {
             return false;
         }
-        ArquivoDocumento doc = opt.get();
+        Jogo doc = opt.get();
         apagarZipSeExistir(doc.getArquivoCaminhoRelativo());
         repository.deleteById(id);
         catalogoJogoRankingService.removerDocumentoDoRedis(id);
@@ -175,7 +175,7 @@ public class ArquivoDocumentoService {
 
     // ---------- Internos ----------
 
-    private ArquivoDocumento salvarAtualizacao(ArquivoDocumento existente, ArquivoDocumento atualizacao) {
+    private Jogo salvarAtualizacao(Jogo existente, Jogo atualizacao) {
         existente.setNome(atualizacao.getNome());
         existente.setDescricao(atualizacao.getDescricao());
         existente.setPreco(atualizacao.getPreco());
@@ -192,9 +192,9 @@ public class ArquivoDocumentoService {
         return repository.save(existente);
     }
 
-    private ArquivoDocumentoDashboardItemDTO paraDashboardItem(ArquivoDocumento doc) {
+    private JogoDashboardItemDTO paraDashboardItem(Jogo doc) {
         String loja = lojaPrincipal(doc.getPlataformasPublicacao());
-        return new ArquivoDocumentoDashboardItemDTO(doc.getId(), loja,
+        return new JogoDashboardItemDTO(doc.getId(), loja,
                 doc.getStatus() != null ? doc.getStatus() : STATUS_PENDENTE);
     }
 

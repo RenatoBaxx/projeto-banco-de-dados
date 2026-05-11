@@ -11,8 +11,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento;
-import com.projetoDados.HUB.Backend.Mongo.Repository.ArquivoDocumentoRepository;
+import com.projetoDados.HUB.Backend.Mongo.Model.Jogo;
+import com.projetoDados.HUB.Backend.Mongo.Repository.JogoRepository;
 import com.projetoDados.HUB.Backend.Redis.DTO.RankingJogoItemResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -39,11 +39,11 @@ public class CatalogoJogoRankingService {
     private static final String IDS_SET_KEY = "catalog:ranking:ids";
     private static final String HASH_PREFIX = "catalog:game:";
 
-    private final ArquivoDocumentoRepository arquivoDocumentoRepository;
+    private final JogoRepository jogoRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public void recarregarDoMongoParaRedis() {
-        List<ArquivoDocumento> todos = arquivoDocumentoRepository.findAll();
+        List<Jogo> todos = jogoRepository.findAll();
         limparCatalogoAntigo();
 
         if (todos.isEmpty()) {
@@ -51,10 +51,10 @@ public class CatalogoJogoRankingService {
             return;
         }
 
-        List<ArquivoDocumento> embaralhados = new ArrayList<>(todos);
+        List<Jogo> embaralhados = new ArrayList<>(todos);
         Collections.shuffle(embaralhados, ThreadLocalRandom.current());
 
-        for (ArquivoDocumento j : embaralhados) {
+        for (Jogo j : embaralhados) {
             String id = Objects.requireNonNull(j.getId(), "id Mongo nulo");
             gravarHashJogo(j);
             redisTemplate.opsForList().rightPush(ORDEM_KEY, id);
@@ -66,7 +66,7 @@ public class CatalogoJogoRankingService {
     /**
      * Grava ou atualiza um jogo no Redis. Se for novo no catálogo, entra no fim do ranking.
      */
-    public void sincronizarDocumentoNoRedis(ArquivoDocumento j) {
+    public void sincronizarDocumentoNoRedis(Jogo j) {
         if (j == null || j.getId() == null) {
             return;
         }
@@ -96,7 +96,7 @@ public class CatalogoJogoRankingService {
         }
     }
 
-    private void gravarHashJogo(ArquivoDocumento j) {
+    private void gravarHashJogo(Jogo j) {
         String id = Objects.requireNonNull(j.getId());
         String hashKey = HASH_PREFIX + id;
         redisTemplate.opsForHash().put(hashKey, "nome", str(j.getNome()));

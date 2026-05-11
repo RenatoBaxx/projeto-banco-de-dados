@@ -15,8 +15,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.stereotype.Service;
 
-import com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento;
-import com.projetoDados.HUB.Backend.Mongo.Repository.ArquivoDocumentoRepository;
+import com.projetoDados.HUB.Backend.Mongo.Model.Jogo;
+import com.projetoDados.HUB.Backend.Mongo.Repository.JogoRepository;
 import com.projetoDados.HUB.Backend.Redis.DTO.JogoRedisPublicoResponse;
 import com.projetoDados.HUB.Backend.Redis.Model.GameStats;
 
@@ -41,7 +41,7 @@ public class GameStatsService {
     public static final String RANKING_GAMES_ZSET = "ranking:games";
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ArquivoDocumentoRepository arquivoDocumentoRepository;
+    private final JogoRepository jogoRepository;
 
     // ---------- Sessão e contadores por jogo ----------
 
@@ -193,11 +193,11 @@ public class GameStatsService {
 
     /** Todos os jogos no Mongo, ordenados por nome, cada linha com online/pico/score da ZSET. */
     public List<JogoRedisPublicoResponse> catalogoComMetricas() {
-        List<ArquivoDocumento> docs = arquivoDocumentoRepository.findAll().stream()
+        List<Jogo> docs = jogoRepository.findAll().stream()
                 .sorted(Comparator.comparing(this::nomeOuId))
                 .collect(Collectors.toList());
         List<JogoRedisPublicoResponse> lista = new ArrayList<>();
-        for (ArquivoDocumento d : docs) {
+        for (Jogo d : docs) {
             lista.add(montarLinhaCatalogoSemPosicao(d));
         }
         return lista;
@@ -216,7 +216,7 @@ public class GameStatsService {
             String id = t.getValue().toString();
             Double redisScore = t.getScore();
             double score = redisScore != null ? redisScore : 0.0;
-            Optional<ArquivoDocumento> doc = arquivoDocumentoRepository.findById(id);
+            Optional<Jogo> doc = jogoRepository.findById(id);
             GameStats st = getStats(id);
             resultado.add(montarLinhaCompleta(posicao++, id, doc.orElse(null), st, score));
         }
@@ -224,13 +224,13 @@ public class GameStatsService {
     }
 
     private List<JogoRedisPublicoResponse> fallbackCatalogoOrdenado(int limite) {
-        List<ArquivoDocumento> docs = arquivoDocumentoRepository.findAll().stream()
+        List<Jogo> docs = jogoRepository.findAll().stream()
                 .sorted(Comparator.comparing(this::nomeOuId))
                 .limit(limite)
                 .collect(Collectors.toList());
         List<JogoRedisPublicoResponse> lista = new ArrayList<>();
         int p = 1;
-        for (ArquivoDocumento d : docs) {
+        for (Jogo d : docs) {
             Double z = safeZscore(d.getId());
             double score = z != null ? z : 0.0;
             GameStats st = getStats(d.getId());
@@ -239,7 +239,7 @@ public class GameStatsService {
         return lista;
     }
 
-    private JogoRedisPublicoResponse montarLinhaCatalogoSemPosicao(ArquivoDocumento d) {
+    private JogoRedisPublicoResponse montarLinhaCatalogoSemPosicao(Jogo d) {
         GameStats st = getStats(d.getId());
         Double z = safeZscore(d.getId());
         double score = z != null ? z : 0.0;
@@ -249,7 +249,7 @@ public class GameStatsService {
     private JogoRedisPublicoResponse montarLinhaCompleta(
             Integer posicao,
             String id,
-            ArquivoDocumento d,
+            Jogo d,
             GameStats st,
             double scorePopularidade) {
         Long onlineBx = st == null ? null : st.getOnline();
@@ -313,7 +313,7 @@ public class GameStatsService {
         return s != null ? s : "";
     }
 
-    private String nomeOuId(ArquivoDocumento a) {
+    private String nomeOuId(Jogo a) {
         if (a.getNome() != null && !a.getNome().isBlank()) {
             return a.getNome().toLowerCase();
         }

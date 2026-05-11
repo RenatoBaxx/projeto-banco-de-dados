@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.projetoDados.HUB.Backend.Mongo.DTO.ArquivoDocumentoDashboardItemDTO;
-import com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento;
-import com.projetoDados.HUB.Backend.Mongo.Service.ArquivoDocumentoService;
+import com.projetoDados.HUB.Backend.Mongo.DTO.JogoDashboardItemDTO;
+import com.projetoDados.HUB.Backend.Mongo.Model.Jogo;
+import com.projetoDados.HUB.Backend.Mongo.Service.JogoService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,13 +32,13 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/jogos")
 @RequiredArgsConstructor
-public class ArquivoDocumentoController {
+public class JogoController {
 
-    private final ArquivoDocumentoService service;
+    private final JogoService service;
 
     /** Cria jogo só com JSON (sem upload de ficheiros). Entrega: documento salvo (201 implícito em 200). */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ArquivoDocumento> criarJson(@RequestBody ArquivoDocumento body) {
+    public ResponseEntity<Jogo> criarJson(@RequestBody Jogo body) {
         return ResponseEntity.ok(service.criar(body));
     }
 
@@ -56,7 +56,7 @@ public class ArquivoDocumentoController {
             @RequestParam("imagem") MultipartFile imagem,
             @RequestParam("arquivo") MultipartFile arquivo) {
         try {
-            ArquivoDocumento salvo = service.criarComUpload(
+            Jogo salvo = service.criarComUpload(
                     nome, descricao, preco, osJson, modo, platformsJson, imagem, arquivo);
             return ResponseEntity.ok(Map.of("id", salvo.getId(), "message", "Jogo registrado com sucesso"));
         } catch (IllegalArgumentException | IllegalStateException e) {
@@ -66,13 +66,13 @@ public class ArquivoDocumentoController {
 
     /** Lista resumo para o painel (id, loja, status). */
     @GetMapping("/dashboard")
-    public ResponseEntity<List<ArquivoDocumentoDashboardItemDTO>> listarDashboard() {
+    public ResponseEntity<List<JogoDashboardItemDTO>> listarDashboard() {
         return ResponseEntity.ok(service.listarParaDashboard());
     }
 
     /** Lista todos os documentos completos (atenção: inclui metadados; imagem em bytes pode ser omitida no JSON conforme serialização). */
     @GetMapping
-    public ResponseEntity<List<ArquivoDocumento>> listar() {
+    public ResponseEntity<List<Jogo>> listar() {
         return ResponseEntity.ok(service.listar());
     }
 
@@ -88,7 +88,7 @@ public class ArquivoDocumentoController {
 
     /** Busca um documento por id, ou 404. */
     @GetMapping("/{id}")
-    public ResponseEntity<ArquivoDocumento> buscarPorId(@PathVariable String id) {
+    public ResponseEntity<Jogo> buscarPorId(@PathVariable String id) {
         return service.buscarPorId(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -96,9 +96,9 @@ public class ArquivoDocumentoController {
 
     /** Atualização completa por JSON. Entrega documento atualizado ou 404. */
     @PutMapping("/{id}")
-    public ResponseEntity<ArquivoDocumento> atualizar(
+    public ResponseEntity<Jogo> atualizar(
             @PathVariable String id,
-            @RequestBody ArquivoDocumento body) {
+            @RequestBody Jogo body) {
         return service.atualizar(id, body)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -109,7 +109,7 @@ public class ArquivoDocumentoController {
     public ResponseEntity<Void> atualizarStatus(
             @PathVariable String id,
             @RequestParam("status") String status) {
-        Optional<ArquivoDocumento> ok = service.atualizarStatus(id, status);
+        Optional<Jogo> ok = service.atualizarStatus(id, status);
         return ok.isPresent() ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
