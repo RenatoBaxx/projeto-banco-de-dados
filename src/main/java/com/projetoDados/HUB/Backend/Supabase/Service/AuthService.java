@@ -20,9 +20,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Integração com Supabase Auth (signup, password grant) e REST {@code /rest/v1/empresas}.
- * <p>
- * <b>O que entrega:</b> tokens e ids já parseados (sem string JSON opaca para o front), ou mensagens de erro
- * estáveis para o cliente HTTP. Usa {@link JsonMapper} (Jackson 3, padrão no Spring Boot 4).
+ * O que entrega: tokens e ids já parseados (sem string JSON opaca para o front), ou mensagens de erro
+ * estáveis para o cliente HTTP.
  */
 @Slf4j
 @Service

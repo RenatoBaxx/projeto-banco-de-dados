@@ -13,13 +13,13 @@ import lombok.NoArgsConstructor;
 
 /**
  * Documento de jogo/arquivo no catálogo: metadados + referência ao .zip em disco.
- * Coleção mantém o nome {@code arquivos} (legado).
+ * Coleção MongoDB: {@code jogos}.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "arquivos")
-public class ArquivoDocumento {
+@Document(collection = "jogos")
+public class Jogo {
 
     @Id
     private String id;

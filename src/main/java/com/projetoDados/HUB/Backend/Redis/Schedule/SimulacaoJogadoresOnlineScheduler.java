@@ -9,8 +9,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento;
-import com.projetoDados.HUB.Backend.Mongo.Repository.ArquivoDocumentoRepository;
+import com.projetoDados.HUB.Backend.Mongo.Model.Jogo;
+import com.projetoDados.HUB.Backend.Mongo.Repository.JogoRepository;
 import com.projetoDados.HUB.Backend.Redis.Service.GameStatsService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -33,24 +33,24 @@ public class SimulacaoJogadoresOnlineScheduler {
     private static final long ONLINE_MIN_INCLUSIVO = 100L;
     private static final long ONLINE_MAX_EXCLUSIVO = 10_001L;
 
-    private final ArquivoDocumentoRepository arquivoDocumentoRepository;
+    private final JogoRepository jogoRepository;
     private final GameStatsService gameStatsService;
     private final int variacaoMaximaAbsoluta;
 
     public SimulacaoJogadoresOnlineScheduler(
-            ArquivoDocumentoRepository arquivoDocumentoRepository,
+            JogoRepository jogoRepository,
             GameStatsService gameStatsService,
             @Value("${app.simulacao-jogadores-online.variacao-max-absoluta:500}") int variacaoMaximaAbsoluta) {
-        this.arquivoDocumentoRepository = arquivoDocumentoRepository;
+        this.jogoRepository = jogoRepository;
         this.gameStatsService = gameStatsService;
         this.variacaoMaximaAbsoluta = variacaoMaximaAbsoluta;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void semearContagemInicial() {
-        Iterable<ArquivoDocumento> todos = arquivoDocumentoRepository.findAll();
+        Iterable<Jogo> todos = jogoRepository.findAll();
         int n = 0;
-        for (ArquivoDocumento doc : todos) {
+        for (Jogo doc : todos) {
             long online = ThreadLocalRandom.current().nextLong(ONLINE_MIN_INCLUSIVO, ONLINE_MAX_EXCLUSIVO);
             gameStatsService.definirBaselineSimulacao(doc.getId(), online);
             n++;
@@ -62,7 +62,7 @@ public class SimulacaoJogadoresOnlineScheduler {
     @Scheduled(fixedRateString = "${app.simulacao-jogadores-online.interval-ms:10000}")
     public void oscilarOnline() {
         int limite = Math.max(0, variacaoMaximaAbsoluta);
-        for (ArquivoDocumento doc : arquivoDocumentoRepository.findAll()) {
+        for (Jogo doc : jogoRepository.findAll()) {
             gameStatsService.aplicarVariacaoAleatoriaOnline(doc.getId(), limite);
         }
     }

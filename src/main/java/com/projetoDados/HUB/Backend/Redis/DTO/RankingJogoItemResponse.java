@@ -3,7 +3,7 @@ package com.projetoDados.HUB.Backend.Redis.DTO;
 import java.util.List;
 
 /**
- * Item de ranking servido ao frontend (campos alinhados ao {@link com.projetoDados.HUB.Backend.Mongo.Model.ArquivoDocumento}).
+ * Item de ranking servido ao frontend (campos alinhados ao {@link com.projetoDados.HUB.Backend.Mongo.Model.Jogo}).
  */
 public record RankingJogoItemResponse(
         int posicao,
