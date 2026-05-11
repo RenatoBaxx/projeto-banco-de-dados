@@ -93,10 +93,6 @@ function Rankings() {
 
       <header style={{ textAlign: 'center', padding: '40px 20px 12px' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>Ranking de Jogos</h1>
-        <p style={{ color: '#999', fontSize: '0.95rem', maxWidth: '640px', margin: '0 auto' }}>
-          Ordem pelo Redis (ZSET; também sobe com <code>/api/stats/&lt;id&gt;/enter</code>). Online e pico vêm dos hashes por jogo.
-          Lista atualiza automaticamente a cada {POLL_RANKING_MS / 1000}s.
-        </p>
       </header>
 
       {loading && (
