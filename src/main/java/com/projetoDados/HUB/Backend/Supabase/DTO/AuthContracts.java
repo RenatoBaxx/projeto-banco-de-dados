@@ -29,7 +29,7 @@ public final class AuthContracts {
     public record RegisterResponse(String message, String userId) {
     }
 
-    public record MeResponse(String userId, String email) {
+    public record MeResponse(String userId, String email, String nomeEmpresa, String cnpj) {
     }
 
     /** Resultado interno do serviço: ou valor tipado ou erro para mapear a HTTP. */

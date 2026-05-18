@@ -69,6 +69,7 @@ public class JogoService {
     public Jogo criarComUpload(
             String nome,
             String descricao,
+            String empresaId,
             String preco,
             String osJson,
             String modo,
@@ -99,6 +100,7 @@ public class JogoService {
         Jogo novo = new Jogo();
         novo.setNome(nome);
         novo.setDescricao(descricao);
+        novo.setEmpresaId(empresaId);
         novo.setPreco(preco);
         novo.setSistemasOperacionais(os);
         novo.setModoJogo(modo);
@@ -124,8 +126,8 @@ public class JogoService {
         return repository.findAll();
     }
 
-    public List<JogoDashboardItemDTO> listarParaDashboard() {
-        return repository.findAll().stream().map(this::paraDashboardItem).collect(Collectors.toList());
+    public List<JogoDashboardItemDTO> listarParaDashboard(String empresaId) {        
+        return repository.findByEmpresaId(empresaId).stream().map(this::paraDashboardItem).collect(Collectors.toList());
     }
 
     public Optional<Jogo> buscarPorId(String id) {
@@ -194,7 +196,7 @@ public class JogoService {
 
     private JogoDashboardItemDTO paraDashboardItem(Jogo doc) {
         String loja = lojaPrincipal(doc.getPlataformasPublicacao());
-        return new JogoDashboardItemDTO(doc.getId(), loja,
+        return new JogoDashboardItemDTO(doc.getId(), doc.getNome(), loja,
                 doc.getStatus() != null ? doc.getStatus() : STATUS_PENDENTE);
     }
 

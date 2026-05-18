@@ -49,6 +49,7 @@ public class JogoController {
     public ResponseEntity<?> publicarComArquivo(
             @RequestParam("nome") String nome,
             @RequestParam("descricao") String descricao,
+            @RequestParam("empresaId") String empresaId,
             @RequestParam("preco") String preco,
             @RequestParam("os") String osJson,
             @RequestParam("modo") String modo,
@@ -57,7 +58,7 @@ public class JogoController {
             @RequestParam("arquivo") MultipartFile arquivo) {
         try {
             Jogo salvo = service.criarComUpload(
-                    nome, descricao, preco, osJson, modo, platformsJson, imagem, arquivo);
+                    nome, descricao, empresaId, preco, osJson, modo, platformsJson, imagem, arquivo);
             return ResponseEntity.ok(Map.of("id", salvo.getId(), "message", "Jogo registrado com sucesso"));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -66,8 +67,8 @@ public class JogoController {
 
     /** Lista resumo para o painel (id, loja, status). */
     @GetMapping("/dashboard")
-    public ResponseEntity<List<JogoDashboardItemDTO>> listarDashboard() {
-        return ResponseEntity.ok(service.listarParaDashboard());
+    public ResponseEntity<List<JogoDashboardItemDTO>> listarDashboard(@RequestParam("empresaId") String empresaId) {
+        return ResponseEntity.ok(service.listarParaDashboard(empresaId));
     }
 
     /** Lista todos os documentos completos (atenção: inclui metadados; imagem em bytes pode ser omitida no JSON conforme serialização). */

@@ -1,8 +1,33 @@
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
 function Index() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem('token');
+    if (!raw) return;
+    try {
+      const { access_token } = JSON.parse(raw);
+      if (!access_token) return;
+      fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + access_token } })
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(data => { if (data.email) setUser(data); })
+        .catch(() => {});
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', }}>
@@ -41,27 +66,77 @@ function Index() {
           </a>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={() => navigate('/login')}
-            style={{
-              background: 'transparent',
-              color: 'white',
-              border: '1px solid white',
-              padding: '8px 15px',
-              marginRight: '10px',
-              borderRadius: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            Entrar
-          </button>
-          <button
-            onClick={() => navigate('/register')}
-            className="btn-primary"
-            style={{ padding: '8px 15px', border: 'none', cursor: 'pointer' }}
-          >
-            Cadastrar Empresa
-          </button>
+          {user ? (
+            <div ref={dropdownRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                style={{
+                  background: 'transparent',
+                  color: 'white',
+                  border: '1px solid #666',
+                  padding: '8px 15px',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {user.email.split('@')[0]}
+                <span style={{ fontSize: '0.6rem' }}>▼</span>
+              </button>
+              {dropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '5px',
+                  background: '#444',
+                  borderRadius: '5px',
+                  minWidth: '150px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  zIndex: 100
+                }}>
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    style={{ display: 'block', width: '100%', padding: '10px 15px', background: 'transparent', color: 'white', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={() => { localStorage.removeItem('token'); setUser(null); setDropdownOpen(false); }}
+                    style={{ display: 'block', width: '100%', padding: '10px 15px', background: 'transparent', color: '#ff6b6b', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                  >
+                    Sair
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate('/login')}
+                style={{
+                  background: 'transparent',
+                  color: 'white',
+                  border: '1px solid white',
+                  padding: '8px 15px',
+                  marginRight: '10px',
+                  borderRadius: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                Entrar
+              </button>
+              <button
+                onClick={() => navigate('/register')}
+                className="btn-primary"
+                style={{ padding: '8px 15px', border: 'none', cursor: 'pointer' }}
+              >
+                Cadastrar Empresa
+              </button>
+            </>
+          )}
         </div>
       </nav>
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 
@@ -6,6 +6,20 @@ const OS_OPTIONS = ['Windows', 'macOS', 'Linux', 'Android', 'iOS'];
 const PLATFORM_OPTIONS = ['Steam', 'Epic Games', 'GOG', 'PlayStation Store', 'Xbox Store', 'Nintendo eShop', 'Google Play', 'App Store'];
 
 function Dashboard() {
+  const [empresaId, setEmpresaId] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const raw = localStorage.getItem('token');
+    if (!raw) { navigate('/login'); return; }
+    let accessToken;
+    try { accessToken = JSON.parse(raw).access_token; } catch { navigate('/login'); return; }
+    if (!accessToken) { navigate('/login'); return; }
+    fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + accessToken } })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => { if (data.user_id) setEmpresaId(data.user_id); })
+      .catch(() => {});
+  }, []);
   const [activeSection, setActiveSection] = useState('create');
   const [pubStep, setPubStep] = useState(1);
   const [pubData, setPubData] = useState({
@@ -74,6 +88,7 @@ function Dashboard() {
       const fd = new FormData();
       fd.append('nome', pubData.name.trim());
       fd.append('descricao', pubData.description.trim());
+      fd.append('empresaId', empresaId || '');
       fd.append('preco', pubData.price.trim());
       fd.append('os', JSON.stringify(pubData.os));
       fd.append('modo', pubData.mode);
@@ -113,7 +128,7 @@ function Dashboard() {
   const fetchAllUploads = async () => {
     setUploadsLoading(true);
     try {
-      const res = await fetch('/api/jogos/dashboard');
+      const res = await fetch('/api/jogos/dashboard?empresaId=' + (empresaId || ''));
       if (res.ok) {
         const data = await res.json();
         setAllUploads(data);
@@ -126,7 +141,7 @@ function Dashboard() {
   };
 
   const filteredUploads = allUploads.filter(u => {
-    const matchText = !filterText || (u.gameId && u.gameId.toLowerCase().includes(filterText.toLowerCase()));
+    const matchText = !filterText || ((u.nome || u.gameId || '').toLowerCase().includes(filterText.toLowerCase()));
     const matchStatus = !filterStatus || u.status === filterStatus;
     const matchLoja = !filterLoja || u.loja === filterLoja;
     return matchText && matchStatus && matchLoja;
@@ -147,18 +162,52 @@ function Dashboard() {
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
 
-  const handleSettingsSave = (e) => {
+  // Preencher dados da empresa quando o useEffect buscar /api/auth/me
+  useEffect(() => {
+    const raw = localStorage.getItem('token');
+    if (!raw) return;
+    try {
+      const { access_token } = JSON.parse(raw);
+      if (!access_token) return;
+      fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + access_token } })
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+        .then(data => {
+          if (data.nomeEmpresa || data.cnpj) {
+            setSettingsData(prev => ({ ...prev, nomeEmpresa: data.nomeEmpresa || '', cnpj: data.cnpj || '' }));
+          }
+        })
+        .catch(() => {});
+    } catch {}
+  }, []);
+
+  const handleSettingsSave = async (e) => {
     e.preventDefault();
-    if (settingsData.senhaNova && settingsData.senhaNova !== settingsData.confirmaSenha) {
+    if (!settingsData.senhaNova) return alert('Informe a nova senha.');
+    if (settingsData.senhaNova !== settingsData.confirmaSenha) {
       return alert('A nova senha e a confirmação não coincidem.');
     }
-    if (settingsData.senhaNova && !settingsData.senhaAtual) {
-      return alert('Informe a senha atual para alterar a senha.');
+    if (settingsData.senhaNova.length < 6) {
+      return alert('A nova senha deve ter pelo menos 6 caracteres.');
     }
-    console.log('Salvando configurações:', settingsData);
-    setSettingsSaved(true);
-    setTimeout(() => setSettingsSaved(false), 3000);
-    setSettingsData(prev => ({ ...prev, senhaAtual: '', senhaNova: '', confirmaSenha: '' }));
+    try {
+      const raw = localStorage.getItem('token');
+      const { access_token } = JSON.parse(raw);
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + access_token },
+        body: JSON.stringify({ newPassword: settingsData.senhaNova }),
+      });
+      if (res.ok) {
+        setSettingsSaved(true);
+        setTimeout(() => setSettingsSaved(false), 3000);
+        setSettingsData(prev => ({ ...prev, senhaAtual: '', senhaNova: '', confirmaSenha: '' }));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Erro ao alterar senha.');
+      }
+    } catch {
+      alert('Erro de conexão.');
+    }
   };
 
   const handleUpdate = async (e) => {
@@ -201,8 +250,6 @@ function Dashboard() {
       alert("Erro de conexão.");
     }
   };
-
-  const navigate = useNavigate();
 
   return (
     <div className="dashboard-layout">
@@ -488,7 +535,7 @@ function Dashboard() {
                 <input
                   type="text"
                   className="form-control filter-input"
-                  placeholder="Buscar por Game ID..."
+                  placeholder="Buscar por nome..."
                   value={filterText}
                   onChange={e => setFilterText(e.target.value)}
                 />
@@ -517,7 +564,7 @@ function Dashboard() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Game ID</th>
+                        <th>Nome</th>
                         <th>Loja</th>
                         <th>Status</th>
                       </tr>
@@ -528,7 +575,7 @@ function Dashboard() {
                       ) : (
                         filteredUploads.map((u, i) => (
                           <tr key={i}>
-                            <td>{u.gameId}</td>
+                            <td>{u.nome || u.gameId}</td>
                             <td>{u.loja}</td>
                             <td>
                               <span className={`table-status ${u.status === 'CONCLUIDO' ? 'status-done' : u.status === 'PENDENTE' ? 'status-pending' : ''}`}>
@@ -612,9 +659,9 @@ function Dashboard() {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Razão Social da Empresa"
                       value={settingsData.nomeEmpresa}
-                      onChange={e => setSettingsData({ ...settingsData, nomeEmpresa: e.target.value })}
+                      disabled
+                      style={{ opacity: 0.7, cursor: 'not-allowed' }}
                     />
                   </div>
                   <div className="form-group" style={{ width: '100%' }}>
@@ -622,25 +669,15 @@ function Dashboard() {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="00.000.000/0001-00"
                       value={settingsData.cnpj}
-                      onChange={e => setSettingsData({ ...settingsData, cnpj: e.target.value })}
+                      disabled
+                      style={{ opacity: 0.7, cursor: 'not-allowed' }}
                     />
                   </div>
                 </div>
 
                 <div className="settings-section">
                   <h3 className="settings-section-title">Alterar Senha</h3>
-                  <div className="form-group" style={{ width: '100%' }}>
-                    <label>Senha Atual</label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      placeholder="••••••••"
-                      value={settingsData.senhaAtual}
-                      onChange={e => setSettingsData({ ...settingsData, senhaAtual: e.target.value })}
-                    />
-                  </div>
                   <div className="form-group" style={{ width: '100%' }}>
                     <label>Nova Senha</label>
                     <input

@@ -133,6 +133,7 @@ public class GameStatsService {
         redisTemplate.opsForHash().put(statsKey, "online", Long.toString(v));
         redisTemplate.opsForHash().put(statsKey, "max", Long.toString(v));
         redisTemplate.opsForHash().put(statsKey, "min", Long.toString(v));
+        redisTemplate.opsForZSet().add(RANKING_GAMES_ZSET, gameId, v);
     }
 
     public void definirOnlineSimulado(String gameId, long online) {
@@ -172,6 +173,7 @@ public class GameStatsService {
         if (novo > max) {
             redisTemplate.opsForHash().put(statsKey, "max", Long.toString(novo));
         }
+        redisTemplate.opsForZSet().add(RANKING_GAMES_ZSET, gameId, novo);
     }
 
     // ---------- Ranking e catálogo com métricas (Mongo + Redis) ----------
