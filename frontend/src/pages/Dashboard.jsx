@@ -17,7 +17,10 @@ function Dashboard() {
     if (!accessToken) { navigate('/login'); return; }
     fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + accessToken } })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(data => { if (data.user_id) setEmpresaId(data.user_id); })
+      .then(data => {
+        const id = data.userId || data.user_id;
+        if (id) setEmpresaId(id);
+      })
       .catch(() => {});
   }, []);
   const [activeSection, setActiveSection] = useState('create');
