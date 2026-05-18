@@ -2,6 +2,7 @@ package com.projetoDados.HUB.Backend.Redis;
 
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,10 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @Order(0)
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+        name = "app.redis.flush-on-startup",
+        havingValue = "true",
+        matchIfMissing = false)
 public class CatalogoRedisWarmupRunner implements ApplicationRunner {
 
     private final CatalogoJogoRankingService catalogoJogoRankingService;

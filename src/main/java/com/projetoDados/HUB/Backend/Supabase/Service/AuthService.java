@@ -129,10 +129,47 @@ public class AuthService {
             if (id == null) {
                 return AuthResult.err("Token invalido");
             }
-            return AuthResult.ok(new MeResponse(id, mail != null ? mail : ""));
+
+            String nomeEmpresa = "";
+            String cnpj = "";
+            try {
+                String empresaJson = restClient.get()
+                        .uri("/rest/v1/empresas?user_id=eq." + id + "&select=nome_empresa,cnpj")
+                        .header("Authorization", "Bearer " + supabaseKey)
+                        .header("apikey", supabaseKey)
+                        .retrieve()
+                        .body(String.class);
+                JsonNode arr = jsonMapper.readTree(empresaJson);
+                if (arr.isArray() && !arr.isEmpty()) {
+                    JsonNode emp = arr.get(0);
+                    nomeEmpresa = nuloSeguro(texto(emp, "nome_empresa"));
+                    cnpj = nuloSeguro(texto(emp, "cnpj"));
+                }
+            } catch (Exception ex) {
+                log.debug("Nao foi possivel buscar dados da empresa: {}", ex.getMessage());
+            }
+
+            return AuthResult.ok(new MeResponse(id, mail != null ? mail : "", nomeEmpresa, cnpj));
         } catch (Exception e) {
             log.debug("Token invalido ou expirado: {}", e.getMessage());
             return AuthResult.err("Token invalido");
+        }
+    }
+
+    public AuthResult<String> changePassword(String bearerToken, String newPassword) {
+        try {
+            String body = jsonMapper.writeValueAsString(Map.of("password", newPassword));
+            restClient.put()
+                    .uri("/auth/v1/user")
+                    .header("Authorization", "Bearer " + bearerToken)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(String.class);
+            return AuthResult.ok("OK");
+        } catch (Exception e) {
+            log.warn("Erro ao alterar senha: {}", e.getMessage());
+            return AuthResult.err("Erro ao alterar senha.");
         }
     }
 

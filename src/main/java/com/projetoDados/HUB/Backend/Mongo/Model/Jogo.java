@@ -18,11 +18,13 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "jogos")
+@Document(collection = "arquivos")
 public class Jogo {
 
     @Id
     private String id;
+
+    private String empresaId;
 
     private String nome;
 

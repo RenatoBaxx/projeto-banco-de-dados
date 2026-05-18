@@ -55,4 +55,20 @@ public class AuthController {
         }
         return ResponseEntity.ok(r.value());
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody java.util.Map<String, String> body) {
+        String token = authHeader.replace("Bearer ", "").trim();
+        String newPassword = body.get("newPassword");
+        if (newPassword == null || newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Senha deve ter pelo menos 6 caracteres."));
+        }
+        var r = authService.changePassword(token, newPassword);
+        if (!r.isOk()) {
+            return ResponseEntity.badRequest().body(r.error());
+        }
+        return ResponseEntity.ok(java.util.Map.of("message", "Senha alterada com sucesso."));
+    }
 }
