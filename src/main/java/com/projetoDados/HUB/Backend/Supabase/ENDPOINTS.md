@@ -9,6 +9,7 @@ No projeto, **Supabase** concentra o **armazenamento relacional** (tabela `empre
 | `POST` | `/api/auth/register` | Corpo JSON: `email`, `password`, `nomeEmpresa`, `cnpj`. Chama signup no Supabase Auth e, em sucesso, insere linha em `empresas` (se dados de empresa forem enviados). |
 | `POST` | `/api/auth/login` | Corpo: `email`, `password`. Troca por tokens (`access_token`, `refresh_token`, etc.) via fluxo password do Supabase. |
 | `GET` | `/api/auth/me` | Cabeçalho `Authorization: Bearer <access_token>`. Devolve identificador e email do utilizador autenticado. |
+| `DELETE` | `/api/auth/account` | Cabeçalho `Authorization: Bearer <access_token>`. Remove a linha em `empresas` e o utilizador no Supabase Auth (API admin). |
 
 ## Chamadas HTTP feitas pelo backend ao Supabase
 
@@ -19,7 +20,9 @@ Estas rotas são **internas** (servidor → Supabase), não são prefixadas por 
 | Registo | `POST` | `/auth/v1/signup` |
 | Login | `POST` | `/auth/v1/token?grant_type=password` |
 | Perfil | `GET` | `/auth/v1/user` (com Bearer do utilizador) |
+| Excluir conta | `DELETE` | `/auth/v1/admin/users/{user_id}` (com `service_role`) |
 | Empresas | `POST` | `/rest/v1/empresas` (com `apikey` + `Authorization: Bearer <service_role ou chave configurada>`) |
+| Empresas | `DELETE` | `/rest/v1/empresas?user_id=eq.{id}` (antes de remover o utilizador no Auth) |
 
 Variáveis de ambiente: `SUPABASE_URL`, `SUPABASE_KEY` (ver `application.properties` e README na raiz).
 

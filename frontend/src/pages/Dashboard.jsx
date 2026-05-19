@@ -164,6 +164,7 @@ function Dashboard() {
     confirmaSenha: '',
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Preencher dados da empresa quando o useEffect buscar /api/auth/me
   useEffect(() => {
@@ -230,6 +231,39 @@ function Dashboard() {
       }
     } catch (err) {
       alert("Erro de conexão.");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm(
+      'Excluir permanentemente a sua conta no Supabase?\n\n'
+      + 'Os dados da empresa serão removidos. Esta ação não pode ser desfeita.'
+    )) return;
+    setDeletingAccount(true);
+    try {
+      const raw = localStorage.getItem('token');
+      const { access_token } = JSON.parse(raw || '{}');
+      if (!access_token) {
+        alert('Sessão expirada. Faça login novamente.');
+        navigate('/login');
+        return;
+      }
+      const res = await fetch('/api/auth/account', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer ' + access_token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Não foi possível excluir a conta.');
+        return;
+      }
+      localStorage.removeItem('token');
+      alert(data.message || 'Conta excluída com sucesso.');
+      navigate('/');
+    } catch {
+      alert('Erro de conexão ao excluir a conta.');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -705,6 +739,21 @@ function Dashboard() {
 
                 <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>Salvar Alterações</button>
               </form>
+
+              <div className="settings-section" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #444' }}>
+                <h3 className="settings-section-title" style={{ color: '#f88' }}>Zona de perigo</h3>
+                <p style={{ color: '#999', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                  Remove a conta de autenticação no Supabase e os dados da empresa associados.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={deletingAccount}
+                  onClick={handleDeleteAccount}
+                >
+                  {deletingAccount ? 'Excluindo conta…' : 'Excluir minha conta'}
+                </button>
+              </div>
             </section>
           )}
 

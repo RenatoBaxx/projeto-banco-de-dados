@@ -40,9 +40,30 @@ function Jogos() {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [modeFilter, setModeFilter] = useState('Todos');
+
+  async function excluirJogo(game) {
+    const id = game?.id;
+    if (!id) return;
+    const nome = game.nome || id;
+    if (!window.confirm(`Excluir o jogo "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/jogos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setGames((prev) => prev.filter((g) => g.id !== id));
+      } else {
+        alert('Não foi possível excluir o jogo.');
+      }
+    } catch {
+      alert('Erro de conexão ao excluir o jogo.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -203,7 +224,7 @@ function Jogos() {
             const pico = game.picoJogadoresOnline ?? 0;
             const pop = game.scorePopularidade ?? 0;
             return (
-              <div key={game.id} className="card" style={{ padding: '0', overflow: 'hidden', transition: 'transform 0.2s', cursor: 'pointer' }}>
+              <div key={game.id} className="card" style={{ padding: '0', overflow: 'hidden', transition: 'transform 0.2s' }}>
                 <img
                   src={coverSrc(game)}
                   alt={game.nome || ''}
@@ -211,7 +232,20 @@ function Jogos() {
                   onError={(e) => { e.currentTarget.src = '/gamehub.png'; }}
                 />
                 <div style={{ padding: '14px' }}>
-                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px', borderBottom: 'none' }}>{game.nome || '—'}</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                    <h3 style={{ fontSize: '1rem', margin: 0, borderBottom: 'none', flex: 1 }}>{game.nome || '—'}</h3>
+                    {user && (
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        disabled={deletingId === game.id}
+                        onClick={() => excluirJogo(game)}
+                        style={{ padding: '4px 10px', fontSize: '0.72rem', width: 'auto', flexShrink: 0 }}
+                      >
+                        {deletingId === game.id ? '…' : 'Excluir'}
+                      </button>
+                    )}
+                  </div>
                   <p style={{ color: '#999', fontSize: '0.8rem', margin: '0 0 8px' }}>{loja}</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '10px', fontSize: '0.68rem', textAlign: 'center' }}>
                     <span style={{ padding: '4px', background: '#1e3d1e', borderRadius: '6px', color: '#9f9' }}>

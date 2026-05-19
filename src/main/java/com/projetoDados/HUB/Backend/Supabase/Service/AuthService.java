@@ -173,6 +173,52 @@ public class AuthService {
         }
     }
 
+    /**
+     * Remove a conta autenticada: linha em {@code empresas} e utilizador no Supabase Auth (admin API).
+     * Requer {@code SUPABASE_KEY} com permissão de service role.
+     */
+    public AuthResult<String> deleteAccount(String bearerToken) {
+        AuthResult<MeResponse> me = getUser(bearerToken);
+        if (!me.isOk()) {
+            return AuthResult.err(me.error().error());
+        }
+        String userId = me.value().userId();
+        if (userId == null || userId.isBlank()) {
+            return AuthResult.err("Utilizador invalido.");
+        }
+        try {
+            removerEmpresa(userId);
+            restClient.delete()
+                    .uri("/auth/v1/admin/users/{userId}", userId)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Conta Supabase removida: user_id={}", userId);
+            return AuthResult.ok("Conta excluida com sucesso.");
+        } catch (RestClientException e) {
+            log.warn("Falha ao excluir conta user_id={}: {}", userId, e.getMessage());
+            return AuthResult.err(
+                    "Nao foi possivel excluir a conta. Verifique SUPABASE_KEY (service role) e permissoes no Supabase.");
+        } catch (Exception e) {
+            log.warn("Erro inesperado ao excluir conta user_id={}: {}", userId, e.getMessage());
+            return AuthResult.err("Erro ao excluir a conta.");
+        }
+    }
+
+    private void removerEmpresa(String userId) {
+        try {
+            restClient.delete()
+                    .uri("/rest/v1/empresas?user_id=eq.{userId}", userId)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .header("apikey", supabaseKey)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Empresa removida para user_id={}", userId);
+        } catch (Exception e) {
+            log.warn("Nao foi possivel remover empresas para user_id={}: {}", userId, e.getMessage());
+        }
+    }
+
     private void salvarEmpresa(String userId, String nomeEmpresa, String cnpj, String email) {
         try {
             Map<String, String> row = new LinkedHashMap<>();

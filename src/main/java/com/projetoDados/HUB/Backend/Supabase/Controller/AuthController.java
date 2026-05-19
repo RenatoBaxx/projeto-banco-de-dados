@@ -1,6 +1,7 @@
 package com.projetoDados.HUB.Backend.Supabase.Controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -70,5 +71,15 @@ public class AuthController {
             return ResponseEntity.badRequest().body(r.error());
         }
         return ResponseEntity.ok(java.util.Map.of("message", "Senha alterada com sucesso."));
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<?> deleteAccount(@RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "").trim();
+        var r = authService.deleteAccount(token);
+        if (!r.isOk()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", r.error().error()));
+        }
+        return ResponseEntity.ok(java.util.Map.of("message", r.value()));
     }
 }
